@@ -13,6 +13,9 @@ require(sf)
 require(ggthemes)
 require(ggsci)
 
+source("aux_funct.R")
+source("aux_funct_ps.R")
+source("functions_probscen.R")
 
 # Global settings ####
 
@@ -328,8 +331,76 @@ scots_wf_filtered %>%
   )
 # plot time series of wind speed and power
 
+source("aux_funct_ps.R")
+
+t0 <- as.POSIXct("2024-03-01 00:00:00", tz = "UTC")
+h = 24 * 14 # 14 days ahead
+# scots_wf_filtered$halfHourEndTime %>% tz()
+current_site <- scots_summary$site_name[1]
+
+for (current_site in scots_summary$site_name) {
+  # print(current_site)
+  temp_plot <- plot_nh_ahead(
+    data = scots_wf_filtered %>% filter(site_name == current_site),
+    mycols = c("norm_potential", "ws_h"),
+    col_labels = c("power", "wind speed"),
+    t0 = t0,
+    h = 24 * 14,
+    show.fig = FALSE,
+    xvar = "halfHourEndTime",
+    axis_2 = TRUE
+  )
+
+  ggsave(
+    filename = sprintf(
+      "fig_ts/ts_wf-%s_t0-%s_h-%03d.png",
+      current_site,
+      format(t0, "%Y%m%d%H%M"),
+      h
+    ),
+    plot = temp_plot$plot +
+      # scale_colour_discrete(labels = c("Observed", "Wind speed")) +
+      coord_cartesian(ylim = c(0, NA)) +
+      labs(x = "time", y = "Normalised power") +
+      scale_x_datetime(),
+    width = 8,
+    height = 6
+  )
+}
+
 # get aux functions from last time
 
 # plot time series for a few wind farms
+t0 <- as.POSIXct("2024-03-01 00:00:00", tz = "UTC")
+h = 24 * 14 # 14 days ahead
+# scots_wf_filtered$halfHourEndTime %>% tz()
+current_site <- scots_summary$site_name[1]
 
-# plot PC derive estimate and observed power
+for (current_site in scots_summary$site_name) {
+  # print(current_site)
+  temp_plot <- plot_nh_ahead(
+    data = scots_wf_filtered %>% filter(site_name == current_site),
+    mycols = c("norm_potential", "norm_power_est0"),
+    t0 = t0,
+    h = 24 * 14,
+    show.fig = FALSE,
+    xvar = "halfHourEndTime"
+  )
+
+  ggsave(
+    filename = sprintf(
+      "fig_ts/ts_wf-%s_t0-%s_h-%03d.png",
+      current_site,
+      format(t0, "%Y%m%d%H%M"),
+      h
+    ),
+    plot = temp_plot$plot +
+      labs(x = "time", y = "Normalised power") +
+      scale_x_datetime(),
+    width = 8,
+    height = 6
+  )
+}
+# plot PC derived estimate and observed power
+
+# recover wind speed for times without power observations
