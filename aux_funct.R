@@ -1045,7 +1045,9 @@ power_curve_data1f <- function(
     "observed" = blues9[7],
     "generic power curve" = "darkred",
     "outages" = "darkorange"
-  )
+  ),
+  generation_df = gen_adj,
+  generic_pwr_curve = generic_pc
 ) {
   # browser()
   turb_class <- ref_catalog_2025 %>%
@@ -1053,7 +1055,7 @@ power_curve_data1f <- function(
     pull(turb_class) %>%
     unique()
 
-  pwr_curv_1wf <- gen_adj %>%
+  pwr_curv_1wf <- generation_df %>%
     filter(grepl(bmu_code, bmUnit)) %>%
     mutate(
       quantity = quantity + lag(quantity),
@@ -1090,7 +1092,7 @@ power_curve_data1f <- function(
       ws_h = ws100 * (height_turb_imp / 100)^(1 / 7)
     )
 
-  scaled_pc <- generic_pc %>%
+  scaled_pc <- generic_pwr_curve %>%
     filter(class %in% turb_class) %>%
     mutate(power_scaled = power_kw * pwr_curv_1wf$capacity[1] / ratedPower)
 
