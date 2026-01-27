@@ -54,7 +54,7 @@ if (local_run) {
   mc <- 1 #detectCores()-2
 }
 
-input_data <- "data/scotish_wf_24.parquet"
+input_data <- "data/scotish_wfsamp_24.parquet"
 # input_scalingpars <- "data/scotish_wf_24_scaling_pars.csv"
 
 inla.setOption(num.threads = sprintf("%d:1", mc))
@@ -64,7 +64,7 @@ source("aux_funct_ps.R")
 
 t1 <- "2024-06-30 23:00:00" %>% as.POSIXct(tz = "UTC")
 # training window in months
-window <- 6
+window <- 3
 
 # remove last 24 hours
 mask_opt <- TRUE
@@ -145,16 +145,17 @@ source("aux_funct_ps.R")
 # undebug(history_window)
 # debug(fit_inla_model)
 initial_values <- NULL
+data_masked <- history_window(
+  data.scaled,
+  t1,
+  window = window,
+  mask = mask_opt
+)
 mod_temp <- tryCatch(
   fit_inla_model(
     model_type = model_type,
     features_vec = features_vec,
-    data = history_window(
-      data.scaled,
-      t1,
-      window = window,
-      mask = mask_opt
-    ),
+    data = data_masked,
     ini.theta = initial_values,
     verbose = TRUE
   ),
@@ -163,7 +164,6 @@ mod_temp <- tryCatch(
     return(NULL)
   }
 )
-
 
 ########## Saving output ######################################################
 
