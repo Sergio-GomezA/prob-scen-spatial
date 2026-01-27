@@ -194,14 +194,14 @@ if (!is.null(mod_temp)) {
   result <- bind_cols(model_scores, model_mode, tags = mode_tags)
 
   model_fname <- sprintf(
-    "r_%s_f_%s_%s_id%d.rds",
+    "r_%s_f_%s_%s_feat_%s.rds",
     model_type$response,
     model_type$family,
     model_type$fderiv,
     # model list
     # sub("^model_(.*)\\.rds$", "\\1", model_list_file),
     # id
-    model_id
+    paste(features_vec, collapse = "-")
   )
   if (save_model) saveRDS(mod_temp, file = file.path(mod_obj_path, model_fname))
 } else {
