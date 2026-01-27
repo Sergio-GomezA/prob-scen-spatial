@@ -108,10 +108,14 @@ scots_summary <- scots_wf %>%
     n = n(),
     across(c(ws_h, matches("ws|wd|potential|power_est0|norm_|err")), mean)
   ) %>%
-  filter(abs(error0) <= 0.2, lat <= 56) %>%
+  filter(abs(error0) <= 0.2, lat <= 56, lon <= -3) %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326)
 
+set.seed(0)
+sample_wf <- sample(scots_summary$site_name, 20)
+
 scots_summary %>%
+  filter(site_name %in% sample_wf) %>%
   ggplot() +
   geom_sf(data = uk_map, fill = "lightgrey", color = "white") +
   geom_sf(aes(geometry = geometry))
@@ -119,7 +123,7 @@ scots_summary %>%
 # plot power curve scatter
 scots_wf_filtered <- scots_wf %>%
   filter(abs(error0) <= 0.2) %>%
-  filter(site_name %in% scots_summary$site_name)
+  filter(site_name %in% sample_wf)
 scots_wf_filtered %>%
   ggplot() +
   geom_point(aes(x = ws_h, y = norm_potential), alpha = 0.1)
