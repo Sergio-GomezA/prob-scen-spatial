@@ -5,6 +5,7 @@ require(data.table)
 require(lubridate)
 require(INLA)
 require(arrow)
+require(parallel)
 
 local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 
@@ -51,7 +52,7 @@ if (local_run) {
   )
   # path.fig <- file.path(large_obj_path,ofolder,"fig")
   # path.samples <- file.path(large_obj_path,ofolder,"sample")
-  mc <- 1 #detectCores()-2
+  mc <- detectCores() - 2
 }
 
 input_data <- "data/scotish_wfsamp_24.parquet"
@@ -117,7 +118,16 @@ data_masked <- history_window(
   t1,
   window = window,
   mask = mask_opt
-)
+) %>%
+  mutate(
+    site_id = as.integer(factor(site_id)),
+    # time_num = as.numeric(time),
+    # t = ave(
+    #   time_num,
+    #   site_id,
+    #   FUN = function(x) seq_along(x)
+    # )
+  )
 
 ########## Model specifications ###############################################
 
@@ -136,7 +146,7 @@ features_vec <- model_list[model_id, 6] %>%
   unlist() %>%
   unname() %>%
   gsub("ar2", "ar1g", .)
-features_vec <- features_vec[-2]
+# features_vec <- features_vec[-2]
 cat(
   sprintf(
     "Running model type: %s \nFeatures included: %s",
@@ -149,7 +159,7 @@ cat(
 source("aux_funct_ps.R")
 # undebug(history_window)
 # debug(fit_inla_model)
-initial_values <- NULL
+# initial_values <- NULL
 
 mod_temp <- tryCatch(
   fit_inla_model(

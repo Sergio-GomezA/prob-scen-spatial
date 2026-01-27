@@ -132,6 +132,7 @@ first_time <- min(scots_wf$halfHourEndTime)
 scots_wf_filtered <- scots_wf %>%
   # filter(abs(error0) <= 0.2) %>%
   filter(site_name %in% sample_wf) %>%
+
   rename(time = halfHourEndTime) %>%
   mutate(date = as.Date(time), month = month(date), hour = hour(date)) %>%
   # simple time index

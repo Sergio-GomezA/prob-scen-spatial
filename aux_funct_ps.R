@@ -2551,7 +2551,11 @@ rhs_formula <- function(features_vec) {
         TRUE ~ NA
       ),
       group = case_when(
-        grepl("ar1g$|ar2g$", feature0) ~ "'site_id'",
+        grepl("ar1g$|ar2g$", feature0) ~ "site_id",
+        TRUE ~ NA
+      ),
+      values = case_when(
+        grepl("ar1g$|ar2g$", feature0) ~ "sort(unique(t))",
         TRUE ~ NA
       )
     )
@@ -2737,6 +2741,7 @@ fit_inla_model <- function(
         time = c(time, rep(NA, n)),
         month = c(month, rep(NA, n)),
         hour = c(hour, rep(NA, n)),
+        site_id = c(site_id, rep(NA, n)),
         eta = c(1:n, 1:n), # eta indices
         w = c(rep(-1, n), rep(1, n)), # weights for eta effect: -1 to copy lin.predictor, 1 to be part of likelihood
         eta.1 = c(rep(NA, n), 1:n), # indices for positive part of derivative
@@ -2793,12 +2798,12 @@ fit_inla_model <- function(
   # if(model_type$family == "beta"){
   #   family_opts
   # }
-  # browser()
+
   model_formula <- build_formula(model_type, features_vec)
   cat("Fitting formula:\n")
   print(model_formula)
   cat(sprintf("Using %s family\n", model_type$family))
-
+  # browser()
   return(
     inla(
       formula = model_formula,
