@@ -112,7 +112,7 @@ scots_summary <- scots_wf %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326)
 
 set.seed(0)
-sample_wf <- sample(scots_summary$site_name, 20)
+sample_wf <- sample(scots_summary$site_name, 10)
 
 scots_summary %>%
   filter(site_name %in% sample_wf) %>%

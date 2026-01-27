@@ -112,7 +112,12 @@ cat(sprintf(
   "Input file %s loaded\n",
   input_data
 ))
-
+data_masked <- history_window(
+  data.scaled,
+  t1,
+  window = window,
+  mask = mask_opt
+)
 
 ########## Model specifications ###############################################
 
@@ -145,12 +150,7 @@ source("aux_funct_ps.R")
 # undebug(history_window)
 # debug(fit_inla_model)
 initial_values <- NULL
-data_masked <- history_window(
-  data.scaled,
-  t1,
-  window = window,
-  mask = mask_opt
-)
+
 mod_temp <- tryCatch(
   fit_inla_model(
     model_type = model_type,
