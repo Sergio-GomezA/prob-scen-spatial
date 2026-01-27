@@ -108,7 +108,7 @@ scots_summary <- scots_wf %>%
     n = n(),
     across(c(ws_h, matches("ws|wd|potential|power_est0|norm_|err")), mean)
   ) %>%
-  filter(abs(error0) <= 0.2) %>%
+  filter(abs(error0) <= 0.2, lat <= 56) %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326)
 
 scots_summary %>%
@@ -202,7 +202,7 @@ scots_wf_filtered <- scots_wf_filtered %>%
 
 arrow::write_parquet(
   scots_wf_filtered,
-  file.path("data", "scotish_wf_24.parquet")
+  file.path("data", "scotish_wfsamp_24.parquet")
 )
 
 scots_wf_filtered %>%

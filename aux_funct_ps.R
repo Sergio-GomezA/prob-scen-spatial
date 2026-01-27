@@ -1,5 +1,5 @@
 # author: Sergio
-
+require(tidyverse)
 # auxiliary functions
 
 myposixct <- function(timevar, ...) {
@@ -408,7 +408,7 @@ plot_actuals_model <- function(
   }
   if (selection_method == "rank") {
     # mean power 24 hours
-    mpow <- sampleS %>% apply(., 1, mean)
+    mpow <- samples %>% apply(., 1, mean)
     mpowrank <- rank(mpow)
     cutoffs <- seq(1, nrow(sampleS), length.out = n.sim.plot + 1) %>%
       round(., digits = 0)
