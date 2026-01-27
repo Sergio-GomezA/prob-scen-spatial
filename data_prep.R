@@ -53,8 +53,8 @@ source("aux_funct.R")
 # plot location of wind farms
 pwr_curv_df %>% head()
 
-t0 <- "2024-01-01 09:00:00"
-t1 <- "2024-06-30 09:00:00"
+t0 <- "2024-01-01 00:00:00"
+t1 <- "2024-06-30 23:00:00"
 scots_wf <- pwr_curv_df %>%
   left_join(
     ref_catalog_2025 %>%
@@ -123,6 +123,90 @@ scots_wf_filtered <- scots_wf %>%
 scots_wf_filtered %>%
   ggplot() +
   geom_point(aes(x = ws_h, y = norm_potential), alpha = 0.1)
+
+
+scots_wf_filtered <- scots_wf %>%
+  # filter(abs(error0) <= 0.2) %>%
+  filter(site_name %in% scots_summary$site_name) %>%
+  rename(time = halfHourEndTime) %>%
+  mutate(date = as.Date(time)) %>%
+  # simple time index
+  rename(actuals.cf = norm_potential, forecast.cf = power_est0, ws.w = ws_h) %>%
+  group_by(site_name) %>%
+  arrange(time) %>%
+  mutate(
+    t = as.numeric(difftime(time, first(time), units = "hours")),
+    fcst_group = inla.group(forecast.cf, n = 20, method = "cut"),
+    ws.w_group = inla.group(ws.w, n = 20, method = "cut"),
+    err.cf = actuals.cf - forecast.cf,
+    fd = c(0, diff(forecast.cf)),
+    fd_group = inla.group(fd, n = 10, method = "quantile")
+  ) %>%
+  ungroup()
+
+# grouping days for adverse situations
+proba <- c(0, 0.2, 0.8, 1)
+with(
+  scots_wf_filtered,
+  quantile(actuals.cf, proba, na.rm = TRUE)
+)
+
+prob.labels <- c(
+  paste0("low", round((proba[2] - proba[1]) * 100), "%"),
+  "mid",
+  paste0("high", round((proba[4] - proba[3]) * 100), "%")
+)
+
+grouping.days <- scots_wf_filtered %>%
+  # filter(time >= t1) %>%
+  group_by(date) %>%
+  summarise(
+    err.cf = mean(err.cf, na.rm = TRUE),
+    # day.range = diff(range(actuals.cf, na.rm = TRUE)),
+    actuals.cf = mean(actuals.cf, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # Dynamically set labels
+    err.group = cut(
+      err.cf,
+      breaks = quantile(err.cf, proba, na.rm = TRUE),
+      include.lowest = TRUE,
+      labels = prob.labels
+    ),
+    # day.range.group = cut(
+    #   day.range,
+    #   breaks = quantile(day.range, proba, na.rm = TRUE),
+    #   include.lowest = TRUE,
+    #   labels = prob.labels
+    # ),
+    power.group = cut(
+      actuals.cf,
+      breaks = quantile(actuals.cf, proba, na.rm = TRUE),
+      include.lowest = TRUE,
+      labels = prob.labels
+    )
+  )
+
+scots_wf_filtered <- scots_wf_filtered %>%
+  left_join(
+    grouping.days %>% rename(mean.err = err.cf, mean.pow = actuals.cf),
+    by = "date"
+  )
+
+arrow::write_parquet(
+  scots_wf_filtered,
+  file.path("data", "scotish_wf_24.parquet")
+)
+
+scots_wf_filtered %>%
+  pull(halfHourEndTime) %>%
+  range()
+
+scots_wf_filtered %>%
+  pull(site_name) %>%
+  unique()
+
 
 # fit 5 parameter power model per site
 
