@@ -54,7 +54,7 @@ source("aux_funct.R")
 pwr_curv_df %>% head()
 
 t0 <- "2024-01-01 00:00:00"
-t1 <- "2024-06-30 23:00:00"
+t1 <- "2024-12-31 23:00:00"
 scots_wf <- pwr_curv_df %>%
   left_join(
     ref_catalog_2025 %>%
@@ -124,23 +124,29 @@ scots_wf_filtered %>%
   ggplot() +
   geom_point(aes(x = ws_h, y = norm_potential), alpha = 0.1)
 
-
+first_time <- min(scots_wf$halfHourEndTime)
 scots_wf_filtered <- scots_wf %>%
   # filter(abs(error0) <= 0.2) %>%
   filter(site_name %in% scots_summary$site_name) %>%
   rename(time = halfHourEndTime) %>%
-  mutate(date = as.Date(time)) %>%
+  mutate(date = as.Date(time), month = month(date), hour = hour(date)) %>%
   # simple time index
-  rename(actuals.cf = norm_potential, forecast.cf = power_est0, ws.w = ws_h) %>%
+  rename(
+    actuals.cf = norm_potential,
+    forecast.cf = norm_power_est0,
+    ws.w = ws_h
+  ) %>%
+  mutate(
+    fcst_group = inla.group(forecast.cf, n = 40, method = "cut"),
+    ws.w_group = inla.group(ws.w, n = 40, method = "cut"),
+    err.cf = actuals.cf - forecast.cf,
+    fd = c(0, diff(forecast.cf)),
+    fd_group = inla.group(fd, n = 40, method = "quantile")
+  ) %>%
   group_by(site_name) %>%
   arrange(time) %>%
   mutate(
-    t = as.numeric(difftime(time, first(time), units = "hours")),
-    fcst_group = inla.group(forecast.cf, n = 20, method = "cut"),
-    ws.w_group = inla.group(ws.w, n = 20, method = "cut"),
-    err.cf = actuals.cf - forecast.cf,
-    fd = c(0, diff(forecast.cf)),
-    fd_group = inla.group(fd, n = 10, method = "quantile")
+    t = as.numeric(difftime(time, first_time, units = "hours")),
   ) %>%
   ungroup()
 

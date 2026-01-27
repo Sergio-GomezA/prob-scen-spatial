@@ -2425,11 +2425,11 @@ history_window <- function(
   t0 <- t - months(window)
   t1 <- t + hours(h)
 
-  resulta <- scen.data %>%
-    filter(time >= t0)
+  # resulta <- scen.data %>%
+  #   filter(time >= t0)
 
-  resultb <- resulta %>%
-    filter(time <= t1)
+  # resultb <- resulta %>%
+  #   filter(time <= t1)
 
   result <- scen.data %>% #resultb #%>%
     filter(time >= t0, time <= t1) %>%
@@ -2447,6 +2447,7 @@ trunc.cf <- function(x) pmax(pmin(1, x), 0)
 
 
 build_effect <- function(features_opt) {
+  # browser()
   # Convert options to a named list
   values <- as.list(features_opt)
   # Filter out NA values
@@ -2525,10 +2526,9 @@ rhs_formula <- function(features_vec) {
       ),
       # model for each feature
       model = case_when(
-        grepl("^ar", feature0) ~ ifelse(
-          substr(feature0, 3, 3) == "1",
-          "'ar1'",
-          "'ar'"
+        grepl("^ar", feature0) ~ case_when(
+          substr(feature0, 3, 3) == "1" ~ "'ar1'",
+          substr(feature0, 3, 3) == "2" ~ "'ar'"
         ),
         TRUE ~ "'rw2'"
       ),
@@ -2544,9 +2544,14 @@ rhs_formula <- function(features_vec) {
       ),
       # priors for each model
       hyper = case_when(
+        grepl("ar1g|ar2g", feature0) ~ "NULL",
         model == "'rw2'" ~ "hyper.rw2",
         model == "'ar1'" ~ "hyper.ar1",
         model == "'ar'" ~ "hyper.ar2",
+        TRUE ~ NA
+      ),
+      group = case_when(
+        grepl("ar1g$|ar2g$", feature0) ~ "'site_id'",
         TRUE ~ NA
       )
     )

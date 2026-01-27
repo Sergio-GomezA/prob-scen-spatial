@@ -62,7 +62,7 @@ source("fcst_functions.R")
 source("functions_probscen.R")
 source("aux_funct_ps.R")
 
-t1 <- "2024-01-01 00:00:00" %>% as.POSIXct(tz = "UTC")
+t1 <- "2024-06-30 23:00:00" %>% as.POSIXct(tz = "UTC")
 # training window in months
 window <- 6
 
@@ -127,8 +127,11 @@ cat(
 
 # extract current choice
 model_type <- model_list[model_id, 1:5]
-features_vec <- model_list[model_id, 6] %>% unlist() %>% unname()
-
+features_vec <- model_list[model_id, 6] %>%
+  unlist() %>%
+  unname() %>%
+  gsub("ar2", "ar1g", .)
+features_vec <- features_vec[-2]
 cat(
   sprintf(
     "Running model type: %s \nFeatures included: %s",
@@ -138,7 +141,10 @@ cat(
 )
 
 ########## Model fitting ######################################################
-
+source("aux_funct_ps.R")
+# undebug(history_window)
+# debug(fit_inla_model)
+initial_values <- NULL
 mod_temp <- tryCatch(
   fit_inla_model(
     model_type = model_type,
@@ -157,3 +163,58 @@ mod_temp <- tryCatch(
     return(NULL)
   }
 )
+
+
+########## Saving output ######################################################
+
+if (!is.null(mod_temp)) {
+  # print message
+  cat(
+    "Model successfully fitted, extracting data ...\n"
+  )
+  print(summary(mod_temp))
+  # extracting hyperparameters' posterior mode
+  model_mode <- mod_temp$mode$theta %>% as.list() %>% as.data.frame()
+  # extracting hyperparameters' tags
+  mode_tags <- mod_temp$mode$theta.tags %>% paste0(., collapse = ", ")
+  # extracting scores
+  model_scores <- extract_score_model(mod_temp)
+
+  # save_model_info
+  result <- bind_cols(model_scores, model_mode, tags = mode_tags)
+
+  model_fname <- sprintf(
+    "r_%s_f_%s_%s_id%d.rds",
+    model_type$response,
+    model_type$family,
+    model_type$fderiv,
+    # model list
+    # sub("^model_(.*)\\.rds$", "\\1", model_list_file),
+    # id
+    model_id
+  )
+  if (save_model) saveRDS(mod_temp, file = file.path(mod_obj_path, model_fname))
+} else {
+  cat("Model fitting step failed \n")
+  result <- data.frame()
+}
+
+# store result in output folder
+# create directories if necessary
+if (!dir.exists(path_out)) {
+  dir.create(path_out, recursive = TRUE)
+}
+
+fname <- file.path(path_out, sprintf("var_scores_%s.csv", model_id))
+write.csv(result, fname, row.names = FALSE)
+# print message
+cat(sprintf("Saving output in file %s\n", fname))
+
+mend_t <- Sys.time()
+run_time <- difftime(mend_t, mstart_t)
+cat(sprintf(
+  "Whole process ended for model id: %d in %.2f %s\n",
+  model_id,
+  run_time,
+  units(run_time)
+))
