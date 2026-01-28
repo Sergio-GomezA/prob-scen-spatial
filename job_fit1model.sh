@@ -6,6 +6,7 @@
 #$ -e /exports/eddie/scratch/s2441782/spatial/jobfiles/
 #$ -M s2441782@ed.ac.uk
 #$ -m bea
+#$ -pe 64
 
 # Initialise modules
 source /etc/profile.d/modules.sh
