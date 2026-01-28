@@ -9,6 +9,8 @@ require(parallel)
 require(sf)
 require(fmesher)
 require(ggplot2)
+require(ggthemes)
+
 
 local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 
@@ -218,7 +220,7 @@ features_vec <- model_list[model_id, 6] %>%
   unname() %>%
   # gsub("ar2", "ar1g", .)
   gsub("ar2", "matern-ar1", .)
-features_vec <- features_vec[-3]
+# features_vec <- features_vec[-3]
 cat(
   sprintf(
     "Running model type: %s \nFeatures included: %s",
@@ -227,7 +229,7 @@ cat(
   )
 )
 
-data_masked$t %>% summary()
+
 ########## Model fitting ######################################################
 source("aux_funct_ps.R")
 # undebug(history_window)

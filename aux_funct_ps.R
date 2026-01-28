@@ -2629,10 +2629,13 @@ fit_inla_model <- function(
         fd_group = c(fd_group, rep(NA, n)),
         t = c(t, rep(NA, n)),
         time = c(time, rep(NA, n)),
+        time_idx = c(time_idx, time_idx),
         month = c(month, rep(NA, n)),
         hour = c(hour, rep(NA, n)),
         lon = c(lon, rep(NA, n)),
         lat = c(lat, rep(NA, n)),
+        x = c(x, x),
+        y = c(y, y),
         site_id = c(site_id, rep(NA, n)),
         eta = c(1:n, 1:n), # eta indices
         w = c(rep(-1, n), rep(1, n)), # weights for eta effect: -1 to copy lin.predictor, 1 to be part of likelihood
@@ -2661,11 +2664,10 @@ fit_inla_model <- function(
     )
 
     if (any(grepl("matern", features_vec))) {
-      browser()
-      st.group = data0$time_idx
+      st.group = data$time_idx
       A1 <- inla.spde.make.A(
         mesh = mesh,
-        loc = cbind(data0$x, data0$y),
+        loc = cbind(data$x, data$y),
         group = st.group
       )
       wf.spde <- inla.spde2.pcmatern(
@@ -2680,10 +2682,24 @@ fit_inla_model <- function(
         n.group = length(unique(st.group))
       )
 
+      effects_names <- c(
+        "intercept",
+        # eta derivative related effects
+        grepv("w$|w2$|eta", names(data)),
+        # other effects
+        features_vec[
+          grep(
+            "matern|ar|etaderiv",
+            features_vec,
+            invert = TRUE
+          )
+        ]
+      )
+      browser()
       wf.stack <- inla.stack(
         data = setNames(
-          list(data0[[model_type$response]]),
-          model_type$response
+          list(data[[updated_response]]),
+          updated_response
         ),
         A = list(A1, 1),
         effects = list(
@@ -2691,19 +2707,12 @@ fit_inla_model <- function(
             spatial = spde_idx$spatial,
             st.group = spde_idx$spatial.group
           ),
-          cbind(
-            intercept = 1,
-            # t = data0$t,
-            data0[,
-              features_vec[-which(grepl("matern|ar|etaderiv", features_vec))],
-              drop = FALSE
-            ]
-          )
+          data[effects_names] %>% as.data.frame()
         ),
         tag = "wf.data"
       )
       # browser()
-      data <- inla.stack.data(wf.stack)
+      data <- inla.stack.data(wf.stack, wf.spde = wf.spde)
     }
   } else {
     data <- data0
