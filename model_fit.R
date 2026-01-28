@@ -196,7 +196,8 @@ ggplot() +
     aes(x, y),
     data = data_masked %>% select(x, y) %>% unique(),
     inherit.aes = FALSE
-  )
+  ) +
+  theme_map()
 ggsave("fig/meshhex_scotish_wfsamp.pdf", width = 6, height = 4)
 ########## Model specifications ###############################################
 

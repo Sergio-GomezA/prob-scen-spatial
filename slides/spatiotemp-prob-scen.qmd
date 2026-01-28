@@ -1,0 +1,449 @@
+---
+title: "Spatiotemporal Probabilistic Scenarios"
+author:
+  - "S. Gomez$^1$"
+institute:
+   - $^1$School of Mathematics, University of Edinburgh
+institute-short: "UoE"
+date: "2026-01-28"
+format: 
+  beamer:
+    theme: Rochester
+    colortheme: spruce
+    fonttheme: professionalfonts
+    fig-cap-location: top
+    toc: true
+    slide-level: 2
+    split-bib: true
+    output-file: "st-prob-scen_slides_26-01-28.pdf"
+header-includes:
+  - \usepackage{graphicx}
+fontsize: 12pt
+aspectratio: 169
+editor: source
+
+---
+
+```{r include=FALSE}
+# bibliography: calib_pow_ref.bib
+# nocite: "@*"
+require(tidyverse)
+require(kableExtra)
+require(parallel)
+require(dplyr)
+require(scales)
+require(ggsci)
+
+require(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+require(ggthemes)
+require(arrow)
+source("../aux_funct_ps.R")
+path <- "~/Documents/proj2/spatial"
+```
+
+```{r}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = FALSE, cache = FALSE)
+theme_set(theme_bw())
+```
+
+# Overview {#sec-intro}
+
+## Progress check {#sec-updates .unnumbered .nolink}
+
+### New
+- PC fitting
+- Spatial modelling
+- Model estimates
+
+### Next Steps
+- OOS validation
+- Add case study to overleaf
+- Address other comments
+
+
+
+# Power Curve fitting
+
+## Classic parametric shape
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+\footnotesize
+The five-parameter formula (Lydia et.al, 2013):
+
+\begin{equation*}
+  P(u) = D+ \frac{A-D}{(1+(u/C)^B)^G} 
+\end{equation*}
+where: $A$ and $D$ are the upper and lower asymptotes, $C$ controls the inflection point, $B$ is related to the slope at inflection point, and $G$ controls the asymmetry.
+
+:::
+
+::: {.column width="50%"}
+\centering
+\small 5 parameters power curve
+```{r fig.width = 4.5, fig.height = 3.5}
+pc5param <- function(x, A, B, C, D, G) {
+  D + (A - D) / (1 + (x / C)^B)^G
+}
+D <- 0; A <- 1; B=-15; G=0.4; C=7
+w <- seq(0,25, length.out = 100)
+p <-pc5param(w, A,B,C,D,G) 
+
+data.frame(
+    wind = w,
+    power = p
+) %>% 
+    ggplot(aes(wind,power))+
+    geom_line(col = blues9[7])
+```
+
+:::
+
+:::
+
+## Parametric shape for cut-off
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+\footnotesize
+Adding extra parameters we can model de decay after cut-off:
+
+\begin{equation*}
+  P(u) = D+ \frac{A-D}{(1+(u/C_1)^B_1)^G(1+(u/C_2)^B_2)^G} 
+\end{equation*}
+where: $A$ and $D$ are the upper and lower asymptotes, $C_1$ is the first inflection point, $C_2$ is related to the cut-off, $B_1$ is related to the slope at inflection point, $B_2$ to the slope during cut-off, and $G$ controls the asymmetry.
+
+:::
+
+::: {.column width="50%"}
+
+\centering
+\small 7 parameters power curve
+
+```{r fig.width = 4.5, fig.height = 3.5}
+pc7param_r <- function(x, A_raw, B1_raw, C1, D, G_raw, C2, B2_raw) {
+  B1 <- -exp(B1_raw) # always negative
+  B2 <- exp(B2_raw) # always positive
+  A <- D + exp(A_raw) # ensures A > D
+  G <- exp(G_raw) # ensures G > 0
+
+  D +
+    (A - D) /
+      (1 + (x / C1)^B1)^G /
+      (1 + (x / C2)^B2)^G
+}
+D <- 0; A <- 1; B1=log(15); B2=log(100); G=log(0.4); C1=7; C2=22
+w <- seq(0,30, length.out = 100)
+p <-pc7param_r(w, A,B1,C1,D,G, C2, B2) 
+
+data.frame(
+    wind = w,
+    power = p
+) %>% 
+    ggplot(aes(wind,power))+
+    geom_line(col = blues9[7])
+```
+
+:::
+
+:::
+
+
+## Parametric fit for Scotish wind farms
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+\footnotesize
+
+- We can fit the parametric shape using optim
+- As long as there is a reasonable amount of points showing the cut-off optim can converge
+
+\tiny
+\centering
+Estimates from data
+```{r}
+solution1 <- read.csv("../data/pc_7pars_wfsamp_24.csv") %>% 
+    rename(par = X)
+solution1 %>% 
+    kable(digits = 2,format = "latex") %>% 
+    kable_styling(full_width = FALSE )
+```
+:::
+
+::: {.column width="50%"}
+\centering
+\small Data and power curve estimate
+
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scot_wfsamp_24_pc-est.png}
+:::
+
+:::
+
+
+# Spatial modelling
+
+## Parametric fit for Scotish wind farms
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+\footnotesize
+
+- We can fit the parametric shape using optim
+- As long as there is a reasonable amount of points showing the cut-off optim can converge
+
+\tiny
+\centering
+Estimates from data
+```{r}
+solution1 <- read.csv("../data/pc_7pars_wfsamp_24.csv") %>% 
+    rename(par = X)
+solution1 %>% 
+    kable(digits = 2,format = "latex") %>% 
+    kable_styling(full_width = FALSE )
+```
+:::
+
+::: {.column width="50%"}
+\centering
+\small Data and power curve estimate
+
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scot_wfsamp_24_pc-est.png}
+:::
+
+:::
+
+
+# Spatial modelling for probabilistic scenarios
+
+## Model shapes
+
+New models are modifications of the Normalised Error with Normal distribution (NEN)
+
+- Model list
+  - Power Ramp (PR-NEN)
+  - AR1 (PR-AR1-NEN)
+  - Matern-AR1 (ST-NEN)
+
+- Pending
+  - ST-PR-NEN
+  - ST-RS-PR-NEN
+
+## Data
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+- For US data:
+  - Length: 18 months
+  - Resolution: hourly
+  - Locations: 1 region aggregated
+- UK data:
+  - Length: 1 to 3 months
+  - Resolution: hourly
+  - Locations 10 Scotish wind farms
+
+Trying to keep $\text{fit time} < 10\text{min}$
+:::
+
+::: {.column width="50%"}
+\centering
+\small 10 Scotish wind farms
+
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scotish_wfsamp_24_map.pdf}
+:::
+
+:::
+
+## PR-NEN model
+
+::: {.columns}
+
+::: {.column width="60%"}
+\centering
+\small
+Parameters summary
+\tiny
+```{r}
+path <- "~/Documents/proj2/spatial/model_objects/"
+fname <- file.path(  "../data", "PR-NEN_summary.csv")
+
+  mod.temp <- readRDS(file.path(path,"r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"))
+
+# print(mod.temp$.args$formula)
+temp_summary <- cbind(
+  mod.temp$summary.fixed[-7] %>% t(),
+  mod.temp$summary.hyperpar %>% t() 
+  ) %>% 
+    as.data.frame() %>% 
+    setNames(
+        c("Intercept", "Gau prec","Wind RW prec","PR effect")
+    )
+write.csv(temp_summary,fname)
+
+temp_summary %>% 
+    kable(digits = c(2,1,0,2), format = "latex") %>% 
+    kable_styling(
+      latex_options = "scale_down"
+    )
+
+
+```
+:::
+
+
+
+::: {.column width="40%"}
+
+\centering
+\small Effects
+```{r fig.height = 3}
+
+# plot.hyper.dens(mod.temp)
+
+plot.effects(mod.temp,"ws.w_group")
+```
+\small Hyperparameters
+```{r fig.height = 5}
+
+plot.hyper.dens(mod.temp)
+
+# plot.effects(mod.temp,"ws.w_group")
+```
+:::
+
+:::
+
+
+## PR-AR1-NEN model
+
+::: {.columns}
+
+::: {.column width="60%"}
+\centering
+\small
+Parameters summary
+\tiny
+```{r}
+path <- "~/Documents/proj2/spatial/model_objects/"
+mod.temp <- readRDS(file.path(path,"r_err.cf_f_gaussian_eta_feat_ws.w_group-ar1g-etaderiv.rds"))
+
+# print(mod.temp$.args$formula)
+cbind(
+mod.temp$summary.fixed[-7] %>% t(),
+mod.temp$summary.hyperpar %>% t() 
+) %>% 
+    as.data.frame() %>% 
+    setNames(
+        c("Intercept", "Gau prec","Wind RW prec","AR prec","Rho T","Group Rho","PR effect")
+    ) %>% 
+    kable(digits = c(2,0,2,2,2,2,2), format = "latex") %>% 
+    kable_styling(
+      latex_options = "scale_down"
+    )
+
+```
+:::
+
+::: {.column width="40%"}
+
+\centering
+\small Effects
+```{r fig.height = 3}
+
+
+plot.effects(mod.temp,"ws.w_group")
+```
+\small Hyperparameters
+```{r fig.height = 5}
+
+plot.hyper.dens(mod.temp)
+
+```
+:::
+
+:::
+
+
+## ST-NEN model
+
+::: {.columns}
+
+::: {.column width="60%"}
+\centering
+\small
+Parameters summary
+\tiny
+```{r}
+path <- "~/Documents/proj2/spatial/model_objects/"
+mod.temp <- readRDS(file.path(path,"r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1.rds"))
+
+# print(mod.temp$.args$formula)
+cbind(
+mod.temp$summary.fixed[-7] %>% t(),
+mod.temp$summary.hyperpar %>% t() 
+) %>% 
+    as.data.frame() %>% 
+    setNames(
+        c("Intercept", "Gau prec","Wind RW prec","Range","Spat sd","Rho t")
+    ) %>% 
+    kable(digits = c(2,0,0,1,2,2), format = "latex") %>% 
+    kable_styling(
+      latex_options = "scale_down"
+    )
+
+```
+:::
+
+::: {.column width="40%"}
+
+\centering
+\small Effects
+```{r fig.height = 3}
+
+plot.effects(mod.temp,"ws.w_group")
+```
+\small Hyperparameters
+```{r fig.height = 5}
+
+plot.hyper.dens(mod.temp)
+
+```
+:::
+
+:::
+
+# Appendix 
+
+## Map and mesh
+
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+\footnotesize
+\centering
+Map of wind farm samples
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scotish_wfsamp_24_map.pdf}
+:::
+
+::: {.column width="50%"}
+\centering
+\small Mesh
+
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/meshhex_scotish_wfsamp.pdf}
+:::
+
+:::

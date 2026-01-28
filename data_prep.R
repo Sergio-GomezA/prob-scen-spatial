@@ -113,9 +113,21 @@ scots_summary <- scots_wf %>%
 
 set.seed(0)
 sample_wf <- sample(scots_summary$site_name, 10)
-
+sample_wf2 <- scots_summary$site_name
 scots_summary %>%
   filter(site_name %in% sample_wf) %>%
+  ggplot() +
+  geom_sf(data = uk_map, fill = "lightgrey", color = "white") +
+  geom_sf(aes(geometry = geometry)) +
+  theme_map()
+ggsave(
+  "fig/scotish_wfsamp_24_map.pdf",
+  width = 3.5,
+  height = 5
+)
+
+scots_summary %>%
+  filter(site_name %in% sample_wf2) %>%
   ggplot() +
   geom_sf(data = uk_map, fill = "lightgrey", color = "white") +
   geom_sf(aes(geometry = geometry))
@@ -124,9 +136,13 @@ scots_summary %>%
 scots_wf_filtered <- scots_wf %>%
   filter(abs(error0) <= 0.2) %>%
   filter(site_name %in% sample_wf)
-scots_wf_filtered %>%
+
+scots_wf_filtered2 <- scots_wf %>%
+  filter(abs(error0) <= 0.2) %>%
+  filter(site_name %in% sample_wf2)
+scots_wf_filtered2 %>%
   ggplot() +
-  geom_point(aes(x = ws_h, y = norm_potential), alpha = 0.1)
+  geom_point(aes(x = ws_h, y = norm_potential), alpha = 0.2)
 
 first_time <- min(scots_wf$halfHourEndTime)
 scots_wf_filtered <- scots_wf %>%
@@ -300,26 +316,26 @@ loss <- function(par, x, y) {
   sum((y - y_hat)^2)
 }
 
-x <- pmax(1e-6, scots_wf_filtered$ws_h)
-y <- scots_wf_filtered$norm_potential
-start <- c(
-  A = max(y),
-  C = median(x),
-  B = -12,
-  D = 0,
-  G = 1,
-  C2 = quantile(x, 0.999, names = FALSE),
-  B2 = 24,
-  G2 = 1
-)
+x <- pmax(1e-6, scots_wf_filtered2$ws_h)
+y <- scots_wf_filtered2$norm_potential
+# start <- c(
+#   A = max(y),
+#   C = median(x),
+#   B = -12,
+#   D = 0,
+#   G = 1,
+#   C2 = quantile(x, 0.999, names = FALSE),
+#   B2 = 24,
+#   G2 = 1
+# )
 
-fit <- optim(
-  par = start,
-  fn = loss,
-  x = x,
-  y = y,
-  method = "L-BFGS-B"
-)
+# fit <- optim(
+#   par = start,
+#   fn = loss,
+#   x = x,
+#   y = y,
+#   method = "L-BFGS-B"
+# )
 
 #### par transformation
 pc7param_r <- function(x, A_raw, B1_raw, C1, D, G_raw, C2, B2_raw) {
@@ -397,7 +413,13 @@ raw_to_par <- function(par) {
     B2 = B2
   )
 }
-raw_to_par(fit$par)
+
+
+solution1 <- raw_to_par(fit$par)
+
+data.frame(estimate = solution1) %>%
+  write.csv("data/pc_7pars_wfsamp_24.csv", row.names = TRUE)
+
 
 x_seq <- seq(0, 30, length.out = 200)
 y_seq <- pc7param_r(
@@ -411,19 +433,31 @@ y_seq <- pc7param_r(
   B2_raw = fit$par["B2_raw"]
 )
 
-scots_wf_filtered %>%
+scots_wf_filtered2 %>%
   ggplot() +
-  geom_point(aes(x = ws_h, y = norm_potential), alpha = 0.1) +
+  geom_point(
+    aes(x = ws_h, y = norm_potential, col = "observations"),
+    alpha = 0.5
+  ) +
   geom_line(
     data = data.frame(x = x_seq, y = y_seq),
     aes(
       x = x,
-      y = y
+      y = y,
+      col = "fit"
     ),
-    color = "red",
+    # color = "red",
     inherit.aes = FALSE
-  )
+  ) +
+  labs(x = "wind speed", y = "normalised power", col = "") +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values = blues9[c(7, 4)])
 # plot time series of wind speed and power
+ggsave(
+  "fig/scot_wfsamp_24_pc-est.png",
+  width = 6,
+  height = 4
+)
 
 source("aux_funct_ps.R")
 

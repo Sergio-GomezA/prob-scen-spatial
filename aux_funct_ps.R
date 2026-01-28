@@ -2586,79 +2586,6 @@ build_formula <- function(
   return(formula)
 }
 
-# fit_inla_model <- function(
-#     model_type,
-#     features_vec,
-#     data,
-#     ini.theta,
-#     restart = TRUE,
-#     cens = 0.001,
-#     verbose = FALSE,
-#     mycontrol.inla = list(),
-#     gcpo = TRUE,
-#     n.groups = 3,
-#     ...
-# ){
-#   # family_opts <- ifelse(
-#   #   model_type$family == "beta",
-#   #   list(beta.censor.value = cens,
-#   #        control.link = list(model = "default")),
-#   #   NULL
-#   # )
-#   family_opts <- list(beta.censor.value = cens,
-#                       control.link = list(model = "default"))
-#   # browser()
-#   # exclude zeroes
-#   if(model_type$family %in% c("weibull","gamma")){
-#     data <- data %>%
-#       filter(.data[[model_type$response]]>0)
-#   }
-#
-#   # build initials from arguments
-#   mode_opts <- if (identical(ini.theta, list())) {
-#     ini.theta
-#   } else {
-#     list(theta = ini.theta, restart = restart)
-#   }
-#
-#   # override gcpo option for beta models
-#   if(model_type$family %in% c("beta")){
-#     gcpo = FALSE
-#   }
-#
-#   # build gcpo options
-#   gcpo_opts <- if (gcpo){
-#     control.gcpo(enable = TRUE, num.level.sets = n.groups)
-#   } else {
-#     control.gcpo()
-#   }
-#
-#   # if(model_type$family == "beta"){
-#   #   family_opts
-#   # }
-#   # browser()
-#   model_formula <- build_formula(model_type, features_vec)
-#   cat("Fitting formula:\n")
-#   print(model_formula)
-#   cat(sprintf("Using %s family", model_type$family))
-#
-#   return(
-#     inla(
-#       formula = model_formula,
-#       data = data,
-#       family = model_type$family,
-#       control.mode = mode_opts,
-#       control.family = family_opts,
-#       control.compute = list(
-#         config = TRUE, waic = TRUE, cpo = TRUE,
-#         control.gcpo = gcpo_opts),
-#       control.predictor = list(compute = TRUE, link = 1),
-#       control.inla = mycontrol.inla,
-#       verbose = verbose
-#     )
-#   )
-# }
-
 fit_inla_model <- function(
   model_type,
   features_vec,
@@ -2673,13 +2600,6 @@ fit_inla_model <- function(
   mesh = NULL,
   ...
 ) {
-  # family_opts <- ifelse(
-  #   model_type$family == "beta",
-  #   list(beta.censor.value = cens,
-  #        control.link = list(model = "default")),
-  #   NULL
-  # )
-
   # browser()
   # exclude zeroes
   if (model_type$family %in% c("weibull", "gamma")) {
@@ -2739,6 +2659,52 @@ fit_inla_model <- function(
         beta.censor.value = cens
       ) # 2nd beta lik non-fixed precision
     )
+
+    if (any(grepl("matern", features_vec))) {
+      browser()
+      st.group = data0$time_idx
+      A1 <- inla.spde.make.A(
+        mesh = mesh,
+        loc = cbind(data0$x, data0$y),
+        group = st.group
+      )
+      wf.spde <- inla.spde2.pcmatern(
+        mesh = mesh,
+        alpha = 2,
+        prior.range = c(20, 0.5), # P(range < 50km) = 0.5
+        prior.sigma = c(1, 0.5)
+      )
+      spde_idx <- inla.spde.make.index(
+        name = "spatial",
+        n.spde = wf.spde$n.spde,
+        n.group = length(unique(st.group))
+      )
+
+      wf.stack <- inla.stack(
+        data = setNames(
+          list(data0[[model_type$response]]),
+          model_type$response
+        ),
+        A = list(A1, 1),
+        effects = list(
+          list(
+            spatial = spde_idx$spatial,
+            st.group = spde_idx$spatial.group
+          ),
+          cbind(
+            intercept = 1,
+            # t = data0$t,
+            data0[,
+              features_vec[-which(grepl("matern|ar|etaderiv", features_vec))],
+              drop = FALSE
+            ]
+          )
+        ),
+        tag = "wf.data"
+      )
+      # browser()
+      data <- inla.stack.data(wf.stack)
+    }
   } else {
     data <- data0
     family <- model_type$family
@@ -2788,9 +2754,8 @@ fit_inla_model <- function(
         ),
         tag = "wf.data"
       )
-      browser()
+      # browser()
       data <- inla.stack.data(wf.stack)
-      print(names(data))
 
       # checks
       # 1. group exists and is integer
