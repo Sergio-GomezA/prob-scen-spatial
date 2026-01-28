@@ -1,11 +1,14 @@
 # Model fit
-
+mstart_t <- Sys.time()
 require(tidyverse)
 require(data.table)
 require(lubridate)
 require(INLA)
 require(arrow)
 require(parallel)
+require(sf)
+require(fmesher)
+require(ggplot2)
 
 local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 
@@ -65,7 +68,7 @@ source("aux_funct_ps.R")
 
 t1 <- "2024-06-30 23:00:00" %>% as.POSIXct(tz = "UTC")
 # training window in months
-window <- 3
+window <- 1
 
 # remove last 24 hours
 mask_opt <- TRUE
@@ -127,8 +130,74 @@ data_masked <- history_window(
     #   site_id,
     #   FUN = function(x) seq_along(x)
     # )
-  )
+  ) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  mutate(
+    lon = st_coordinates(.)[, 1],
+    lat = st_coordinates(.)[, 2]
+  ) %>%
+  st_transform(crs = 27700) %>%
+  mutate(
+    x = st_coordinates(.)[, 1] / 1000,
+    y = st_coordinates(.)[, 2] / 1000
+  ) %>%
+  st_drop_geometry()
 
+time_grid <- seq(
+  from = min(data_masked$time),
+  to = max(data_masked$time),
+  by = "1 hour"
+)
+data_masked$time_idx <- match(data_masked$time, time_grid)
+data_masked$time_idx %>% range()
+# A1 <- inla.spde.make.A(
+#   mesh = wf.mesh,
+#   loc = cbind(data_masked$x, data_masked$y),
+#   group = data_masked$t
+# )
+
+# wf.spde <- inla.spde2.pcmatern(
+#   mesh = wf.mesh,
+#   alpha = 2,
+#   prior.range = c(20, 0.5), # P(range < 50km) = 0.5
+#   prior.sigma = c(1, 0.5)
+# )
+# spde_idx <- inla.spde.make.index(
+#   name = "spatial",
+#   n.spde = wf.spde$n.spde,
+#   n.group = length(time_grid)
+# )
+# ncol(A1)
+# wf.spde$n.spde * length(time_grid)
+# length(spde_idx$spatial)
+# data_masked %>%
+#   select(x, y) %>%
+#   unique() %>%
+#   dist()
+loc_unique <- data_masked %>%
+  distinct(x, y) %>%
+  as.matrix()
+bnd <- fm_extensions(loc_unique, convex = c(-.2, -.3))
+# ggplot() + geom_sf(data = bnd[[1]])
+wf.mesh <- fm_mesh_2d(
+  # loc = loc_unique,
+  loc = fm_hexagon_lattice(bnd[[1]], edge_len = 15),
+  boundary = bnd,
+  max.edge = c(20, 40), # km
+  # offset = -0.2,
+  cutoff = 5
+)
+wf.mesh$n
+
+
+ggplot() +
+  geom_fm(data = wf.mesh) +
+  geom_point(
+    aes(x, y),
+    data = data_masked %>% select(x, y) %>% unique(),
+    inherit.aes = FALSE
+  )
+ggsave("fig/meshhex_scotish_wfsamp.pdf", width = 6, height = 4)
 ########## Model specifications ###############################################
 
 # read model list
@@ -140,13 +209,15 @@ cat(
   )
 )
 
+
 # extract current choice
 model_type <- model_list[model_id, 1:5]
 features_vec <- model_list[model_id, 6] %>%
   unlist() %>%
   unname() %>%
-  gsub("ar2", "ar1g", .)
-# features_vec <- features_vec[-2]
+  # gsub("ar2", "ar1g", .)
+  gsub("ar2", "matern-ar1", .)
+features_vec <- features_vec[-3]
 cat(
   sprintf(
     "Running model type: %s \nFeatures included: %s",
@@ -155,6 +226,7 @@ cat(
   )
 )
 
+data_masked$t %>% summary()
 ########## Model fitting ######################################################
 source("aux_funct_ps.R")
 # undebug(history_window)
@@ -167,6 +239,7 @@ mod_temp <- tryCatch(
     features_vec = features_vec,
     data = data_masked,
     ini.theta = initial_values,
+    mesh = wf.mesh,
     verbose = TRUE
   ),
   error = function(e) {
@@ -215,7 +288,19 @@ if (!dir.exists(path_out)) {
   dir.create(path_out, recursive = TRUE)
 }
 
-fname <- file.path(path_out, sprintf("var_scores_%s.csv", model_id))
+fname <- file.path(
+  path_out,
+  sprintf(
+    "var_scores_r_%s_f_%s_%s_feat_%s.csv",
+    model_type$response,
+    model_type$family,
+    model_type$fderiv,
+    # model list
+    # sub("^model_(.*)\\.rds$", "\\1", model_list_file),
+    # id
+    paste(features_vec, collapse = "-")
+  )
+)
 write.csv(result, fname, row.names = FALSE)
 # print message
 cat(sprintf("Saving output in file %s\n", fname))

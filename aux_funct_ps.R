@@ -2461,46 +2461,6 @@ build_effect <- function(features_opt) {
 }
 
 
-# rhs_formula <- function(features_vec){
-#
-#   # apply effect rules
-#   features_opt <- data.frame(
-#     feature0 = features_vec
-#   ) %>%
-#     mutate(
-#       feature = case_when(
-#         grepl("^ar",feature0) ~ "t",
-#         TRUE ~ feature0
-#       ),
-#       model = case_when(
-#         grepl("^ar",feature0) ~ ifelse(substr(feature0,3,3)=="1","'ar1'","'ar'"),
-#         TRUE ~ "'rw2'"
-#       ),
-#       order = case_when(
-#         model == "'ar'" ~ 2,
-#         TRUE ~ NA
-#       ),
-#       cyclic = case_when(
-#         feature %in% c("month","hour") ~ TRUE,
-#         TRUE ~ NA
-#       ),
-#       hyper = case_when(
-#         model == "'rw2'" ~ "hyper.rw2",
-#         model == "'ar1'" ~ "hyper.ar1",
-#         model == "'ar'" ~ "hyper.ar2",
-#         TRUE ~ NA
-#       )
-#     )
-#
-#   # convert to effects syntax
-#   effects <- apply(features_opt %>% select(-feature0), 1, build_effect)
-#
-#   # terms for rhs
-#   rhs <- paste0(effects, collapse = " + ")
-#   # browser()
-#   return(rhs)
-# }
-
 rhs_formula <- function(features_vec) {
   # browser()
   # check if eta derivative will be used
@@ -2522,6 +2482,7 @@ rhs_formula <- function(features_vec) {
       # relabelling AR terms to time index
       feature = case_when(
         grepl("^ar", feature0) ~ "t",
+        grepl("^matern", feature0) ~ "spatial",
         TRUE ~ feature0
       ),
       # model for each feature
@@ -2530,6 +2491,7 @@ rhs_formula <- function(features_vec) {
           substr(feature0, 3, 3) == "1" ~ "'ar1'",
           substr(feature0, 3, 3) == "2" ~ "'ar'"
         ),
+        grepl("^matern", feature0) ~ "wf.spde",
         TRUE ~ "'rw2'"
       ),
       # order for AR terms
@@ -2552,10 +2514,15 @@ rhs_formula <- function(features_vec) {
       ),
       group = case_when(
         grepl("ar1g$|ar2g$", feature0) ~ "site_id",
+        grepl("^matern", feature0) ~ "st.group",
         TRUE ~ NA
       ),
       values = case_when(
         grepl("ar1g$|ar2g$", feature0) ~ "sort(unique(t))",
+        TRUE ~ NA
+      ),
+      control.group = case_when(
+        grepl("^matern", feature0) ~ "list(model = 'ar1')",
         TRUE ~ NA
       )
     )
@@ -2703,6 +2670,7 @@ fit_inla_model <- function(
   mycontrol.inla = list(),
   gcpo = TRUE,
   n.groups = 3,
+  mesh = NULL,
   ...
 ) {
   # family_opts <- ifelse(
@@ -2720,6 +2688,8 @@ fit_inla_model <- function(
         .data[[model_type$response]] > 0 | is.na(.data[[model_type$response]])
       )
   }
+
+  control_pred <- list(compute = TRUE, link = 1)
 
   # restructure data for eta deriv type
   if ("etaderiv" %in% features_vec) {
@@ -2741,6 +2711,8 @@ fit_inla_model <- function(
         time = c(time, rep(NA, n)),
         month = c(month, rep(NA, n)),
         hour = c(hour, rep(NA, n)),
+        lon = c(lon, rep(NA, n)),
+        lat = c(lat, rep(NA, n)),
         site_id = c(site_id, rep(NA, n)),
         eta = c(1:n, 1:n), # eta indices
         w = c(rep(-1, n), rep(1, n)), # weights for eta effect: -1 to copy lin.predictor, 1 to be part of likelihood
@@ -2774,6 +2746,66 @@ fit_inla_model <- function(
       beta.censor.value = cens,
       control.link = list(model = "default")
     )
+    # browser()
+    if (any(grepl("matern", features_vec))) {
+      st.group = data0$time_idx
+      A1 <- inla.spde.make.A(
+        mesh = mesh,
+        loc = cbind(data0$x, data0$y),
+        group = st.group
+      )
+      wf.spde <- inla.spde2.pcmatern(
+        mesh = mesh,
+        alpha = 2,
+        prior.range = c(20, 0.5), # P(range < 50km) = 0.5
+        prior.sigma = c(1, 0.5)
+      )
+      spde_idx <- inla.spde.make.index(
+        name = "spatial",
+        n.spde = wf.spde$n.spde,
+        n.group = length(unique(st.group))
+      )
+
+      wf.stack <- inla.stack(
+        data = setNames(
+          list(data0[[model_type$response]]),
+          model_type$response
+        ),
+        A = list(A1, 1),
+        effects = list(
+          list(
+            spatial = spde_idx$spatial,
+            st.group = spde_idx$spatial.group
+          ),
+          cbind(
+            intercept = 1,
+            # t = data0$t,
+            data0[,
+              features_vec[-which(grepl("matern|ar|etaderiv", features_vec))],
+              drop = FALSE
+            ]
+          )
+        ),
+        tag = "wf.data"
+      )
+      browser()
+      data <- inla.stack.data(wf.stack)
+      print(names(data))
+
+      # checks
+      # 1. group exists and is integer
+      # is.integer(data$t)
+      # 2. no NA where response exists
+      # !any(is.na(data$t[!is.na(data[[model_type$response]])]))
+      # 3. A1 rows == observation rows
+      # nrow(A1) == length(data$t)
+      # , spde = wf.spde
+    }
+  }
+
+  # matern covariance options
+  if (any(grepl("matern", features_vec))) {
+    control_pred <- c(control_pred, A = inla.stack.A(wf.stack))
   }
 
   # build initials from arguments
@@ -2798,7 +2830,7 @@ fit_inla_model <- function(
   # if(model_type$family == "beta"){
   #   family_opts
   # }
-
+  # browser()
   model_formula <- build_formula(model_type, features_vec)
   cat("Fitting formula:\n")
   print(model_formula)
@@ -2817,7 +2849,7 @@ fit_inla_model <- function(
         cpo = TRUE,
         control.gcpo = gcpo_opts
       ),
-      control.predictor = list(compute = TRUE, link = 1),
+      control.predictor = control_pred,
       control.inla = mycontrol.inla,
       verbose = verbose
     )
