@@ -7,12 +7,21 @@ Converting Point Forecasts to probabilistic wind power scenarios for a set of wi
   - [ ] Spatial correlation in errors
 
 - [ ] Fit models
-  - [ ] PR-NEN eta derivative
-  - [ ] RS-PR-NEN
+  - [x] PR-NEN
+  - [ ] PR-AR-NEN
+  - [ ] ST-NEN
+  - [ ] ST-PR-NEN
+  - [ ] ST2-PR-NEN (non-separable)
+  - [ ] Regime switching
 
 - [ ] Generate scenarios
   - [ ] PR-NEN
-  - [ ] RS-PR-NEN
+  - [ ] PR-AR-NEN
+  - [ ] ST-NEN
+  - [ ] ST-PR-NEN
+  - [ ] ST2-PR-NEN (non-separable)
+  - [ ] Regime switching
+
 
 - [ ] Scenario scoring
   - [ ] Ramp distribution

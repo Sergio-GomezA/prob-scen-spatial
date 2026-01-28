@@ -2695,7 +2695,7 @@ fit_inla_model <- function(
           )
         ]
       )
-      browser()
+      # browser()
       wf.stack <- inla.stack(
         data = setNames(
           list(data[[updated_response]]),
