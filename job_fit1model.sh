@@ -6,6 +6,7 @@
 #$ -e /exports/eddie/scratch/s2441782/scenarios/jobfiles/
 #$ -M s2441782@ed.ac.uk
 #$ -m bea
+#$ -pe sharedmem 8
 
 # Initialise modules
 source /etc/profile.d/modules.sh
