@@ -1,16 +1,5 @@
 # Model fit
 mstart_t <- Sys.time()
-require(tidyverse)
-require(data.table)
-require(lubridate)
-require(INLA)
-require(arrow)
-require(parallel)
-require(sf)
-require(fmesher)
-require(ggplot2)
-require(ggthemes)
-
 
 local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 
@@ -41,6 +30,8 @@ if (length(args) > 4) {
   initial_values_file <- as.character(args[5])
 }
 
+require(parallel)
+
 if (local_run) {
   large_obj_path <- "~/Documents/proj2/spatial"
   mod_obj_path <- "~/Documents/proj2/spatial/model_objects"
@@ -57,8 +48,20 @@ if (local_run) {
   )
   # path.fig <- file.path(large_obj_path,ofolder,"fig")
   # path.samples <- file.path(large_obj_path,ofolder,"sample")
-  mc <- detectCores() - 2
+  mc <- detectCores()
+  temp_lib <- "/exports/eddie3_homes_local/s2441782/lib"
+  .libPaths(temp_lib)
 }
+
+require(tidyverse)
+require(data.table)
+require(lubridate)
+require(INLA)
+require(arrow)
+require(sf)
+require(fmesher)
+require(ggplot2)
+require(ggthemes)
 
 input_data <- "data/scottish_wfsamp_24.parquet"
 # input_scalingpars <- "data/scottish_wf_24_scaling_pars.csv"
