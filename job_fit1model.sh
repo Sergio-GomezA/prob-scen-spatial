@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#$ -N ps-st
+#$ -N psst1
 #$ -wd /exports/eddie/scratch/s2441782/spatial/
 #$ -o /exports/eddie/scratch/s2441782/spatial/jobfiles/
 #$ -e /exports/eddie/scratch/s2441782/spatial/jobfiles/
