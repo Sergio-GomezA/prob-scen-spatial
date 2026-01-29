@@ -60,8 +60,8 @@ if (local_run) {
   mc <- detectCores() - 2
 }
 
-input_data <- "data/scotish_wfsamp_24.parquet"
-# input_scalingpars <- "data/scotish_wf_24_scaling_pars.csv"
+input_data <- "data/scottish_wfsamp_24.parquet"
+# input_scalingpars <- "data/scottish_wf_24_scaling_pars.csv"
 
 inla.setOption(num.threads = sprintf("%d:1", mc))
 source("fcst_functions.R")
@@ -200,7 +200,7 @@ ggplot() +
     inherit.aes = FALSE
   ) +
   theme_map()
-ggsave("fig/meshhex_scotish_wfsamp.pdf", width = 6, height = 4)
+ggsave("fig/meshhex_scottish_wfsamp.pdf", width = 6, height = 4)
 ########## Model specifications ###############################################
 
 # read model list

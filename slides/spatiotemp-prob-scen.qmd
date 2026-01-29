@@ -40,7 +40,8 @@ library(rnaturalearthdata)
 
 require(ggthemes)
 require(arrow)
-source("../aux_funct_ps.R")
+pre_path <- ifelse(grepl("prob-scen-spatial$",getwd()),getwd(),"..")
+source(file.path(pre_path,"aux_funct_ps.R"))
 path <- "~/Documents/proj2/spatial"
 ```
 
@@ -62,8 +63,6 @@ theme_set(theme_bw())
 - OOS validation
 - Add case study to overleaf
 - Address other comments
-
-
 
 # Power Curve fitting
 
@@ -90,16 +89,20 @@ where: $A$ and $D$ are the upper and lower asymptotes, $C$ controls the inflecti
 pc5param <- function(x, A, B, C, D, G) {
   D + (A - D) / (1 + (x / C)^B)^G
 }
-D <- 0; A <- 1; B=-15; G=0.4; C=7
-w <- seq(0,25, length.out = 100)
-p <-pc5param(w, A,B,C,D,G) 
+D <- 0
+A <- 1
+B = -15
+G = 0.4
+C = 7
+w <- seq(0, 25, length.out = 100)
+p <- pc5param(w, A, B, C, D, G)
 
 data.frame(
-    wind = w,
-    power = p
-) %>% 
-    ggplot(aes(wind,power))+
-    geom_line(col = blues9[7])
+  wind = w,
+  power = p
+) %>%
+  ggplot(aes(wind, power)) +
+  geom_line(col = blues9[7])
 ```
 
 :::
@@ -139,16 +142,22 @@ pc7param_r <- function(x, A_raw, B1_raw, C1, D, G_raw, C2, B2_raw) {
       (1 + (x / C1)^B1)^G /
       (1 + (x / C2)^B2)^G
 }
-D <- 0; A <- 1; B1=log(15); B2=log(100); G=log(0.4); C1=7; C2=22
-w <- seq(0,30, length.out = 100)
-p <-pc7param_r(w, A,B1,C1,D,G, C2, B2) 
+D <- 0
+A <- 1
+B1 = log(15)
+B2 = log(100)
+G = log(0.4)
+C1 = 7
+C2 = 22
+w <- seq(0, 30, length.out = 100)
+p <- pc7param_r(w, A, B1, C1, D, G, C2, B2)
 
 data.frame(
-    wind = w,
-    power = p
-) %>% 
-    ggplot(aes(wind,power))+
-    geom_line(col = blues9[7])
+  wind = w,
+  power = p
+) %>%
+  ggplot(aes(wind, power)) +
+  geom_line(col = blues9[7])
 ```
 
 :::
@@ -156,7 +165,7 @@ data.frame(
 :::
 
 
-## Parametric fit for Scotish wind farms
+## Parametric fit for Scottish wind farms
 
 ::: {.columns}
 
@@ -171,11 +180,11 @@ data.frame(
 \centering
 Estimates from data
 ```{r}
-solution1 <- read.csv("../data/pc_7pars_wfsamp_24.csv") %>% 
-    rename(par = X)
-solution1 %>% 
-    kable(digits = 2,format = "latex") %>% 
-    kable_styling(full_width = FALSE )
+solution1 <- read.csv(file.path(pre_path,"data/pc_7pars_wfsamp_24.csv")) %>%
+  rename(par = X)
+solution1 %>%
+  kable(digits = 2, format = "latex") %>%
+  kable_styling(full_width = FALSE)
 ```
 :::
 
@@ -191,7 +200,7 @@ solution1 %>%
 
 # Spatial modelling
 
-## Parametric fit for Scotish wind farms
+## Parametric fit for Scottish wind farms
 
 ::: {.columns}
 
@@ -206,11 +215,11 @@ solution1 %>%
 \centering
 Estimates from data
 ```{r}
-solution1 <- read.csv("../data/pc_7pars_wfsamp_24.csv") %>% 
-    rename(par = X)
-solution1 %>% 
-    kable(digits = 2,format = "latex") %>% 
-    kable_styling(full_width = FALSE )
+solution1 <- read.csv(file.path(pre_path,"data/pc_7pars_wfsamp_24.csv")) %>%
+  rename(par = X)
+solution1 %>%
+  kable(digits = 2, format = "latex") %>%
+  kable_styling(full_width = FALSE)
 ```
 :::
 
@@ -252,16 +261,16 @@ New models are modifications of the Normalised Error with Normal distribution (N
 - UK data:
   - Length: 1 to 3 months
   - Resolution: hourly
-  - Locations 10 Scotish wind farms
+  - Locations 10 Scottish wind farms
 
 Trying to keep $\text{fit time} < 10\text{min}$
 :::
 
 ::: {.column width="50%"}
 \centering
-\small 10 Scotish wind farms
+\small 10 Scottish wind farms
 
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scotish_wfsamp_24_map.pdf}
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/Scottish_wfsamp_24_map.pdf}
 :::
 
 :::
@@ -277,26 +286,29 @@ Parameters summary
 \tiny
 ```{r}
 path <- "~/Documents/proj2/spatial/model_objects/"
-fname <- file.path(  "../data", "PR-NEN_summary.csv")
+fname <- file.path(pre_path,"data", "PR-NEN_summary.csv")
 
-  mod.temp <- readRDS(file.path(path,"r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"))
+mod.temp <- readRDS(file.path(
+  path,
+  "r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"
+))
 
 # print(mod.temp$.args$formula)
 temp_summary <- cbind(
   mod.temp$summary.fixed[-7] %>% t(),
-  mod.temp$summary.hyperpar %>% t() 
-  ) %>% 
-    as.data.frame() %>% 
-    setNames(
-        c("Intercept", "Gau prec","Wind RW prec","PR effect")
-    )
-write.csv(temp_summary,fname)
+  mod.temp$summary.hyperpar %>% t()
+) %>%
+  as.data.frame() %>%
+  setNames(
+    c("Intercept", "Gau prec", "Wind RW prec", "PR effect")
+  )
+write.csv(temp_summary, fname)
 
-temp_summary %>% 
-    kable(digits = c(2,1,0,2), format = "latex") %>% 
-    kable_styling(
-      latex_options = "scale_down"
-    )
+temp_summary %>%
+  kable(digits = c(2, 1, 0, 2), format = "latex") %>%
+  kable_styling(
+    latex_options = "scale_down"
+  )
 
 
 ```
@@ -424,6 +436,60 @@ plot.hyper.dens(mod.temp)
 
 :::
 
+
+## ST-PR-NEN model
+
+::: {.columns}
+
+::: {.column width="60%"}
+\centering
+\small
+Parameters summary
+\tiny
+```{r}
+path <- "~/Documents/proj2/spatial/model_objects/"
+mod.temp <- readRDS(
+  file.path(
+    path,
+    "r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.rds"
+  )
+)
+
+# print(mod.temp$.args$formula)
+cbind(
+  mod.temp$summary.fixed[-7] %>% t(),
+  mod.temp$summary.hyperpar %>% t()
+) %>%
+  as.data.frame() %>%
+  setNames(
+    c("Intercept", "Gau prec", "Wind RW prec", "Range", "Spat sd", "Rho t", "PR effect")
+  ) %>%
+  kable(digits = c(2, 0, 0, 1, 2, 2, 2), format = "latex") %>%
+  kable_styling(
+    latex_options = "scale_down"
+  )
+
+```
+:::
+
+::: {.column width="40%"}
+
+\centering
+\small Effects
+```{r fig.height = 3}
+
+plot.effects(mod.temp,"ws.w_group")
+```
+\small Hyperparameters
+```{r fig.height = 5}
+
+plot.hyper.dens(mod.temp)
+
+```
+:::
+
+:::
+
 # Appendix 
 
 ## Map and mesh
@@ -436,14 +502,14 @@ plot.hyper.dens(mod.temp)
 \footnotesize
 \centering
 Map of wind farm samples
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scotish_wfsamp_24_map.pdf}
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/Scottish_wfsamp_24_map.pdf}
 :::
 
 ::: {.column width="50%"}
 \centering
 \small Mesh
 
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/meshhex_scotish_wfsamp.pdf}
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/meshhex_Scottish_wfsamp.pdf}
 :::
 
 :::

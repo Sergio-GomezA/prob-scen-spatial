@@ -108,11 +108,12 @@ scots_summary <- scots_wf %>%
     n = n(),
     across(c(ws_h, matches("ws|wd|potential|power_est0|norm_|err")), mean)
   ) %>%
-  filter(abs(error0) <= 0.2, lat <= 56, lon <= -3) %>%
+  filter(abs(error0) <= 0.2, lat <= 56) %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326)
 
+## sample scottish wind farms
 set.seed(0)
-sample_wf <- sample(scots_summary$site_name, 10)
+sample_wf <- sample(scots_summary$site_name, 35)
 sample_wf2 <- scots_summary$site_name
 scots_summary %>%
   filter(site_name %in% sample_wf) %>%
@@ -121,17 +122,31 @@ scots_summary %>%
   geom_sf(aes(geometry = geometry)) +
   theme_map()
 ggsave(
-  "fig/scotish_wfsamp_24_map.pdf",
+  "fig/scottish_wfsamp_24_map.pdf",
   width = 3.5,
   height = 5
 )
 
-scots_summary %>%
-  filter(site_name %in% sample_wf2) %>%
-  ggplot() +
+ggplot() +
   geom_sf(data = uk_map, fill = "lightgrey", color = "white") +
-  geom_sf(aes(geometry = geometry))
-
+  geom_sf(
+    aes(geometry = geometry, col = "Train"),
+    data = scots_summary %>%
+      filter((site_name %in% sample_wf))
+  ) +
+  geom_sf(
+    aes(geometry = geometry, col = "OOS"),
+    data = scots_summary %>%
+      filter(!(site_name %in% sample_wf))
+  ) +
+  scale_color_manual(values = pal_aaas()(2) %>% rev()) +
+  labs(col = "") +
+  theme_map()
+ggsave(
+  "fig/scottish_wfsamp_24_map.pdf",
+  width = 3.5,
+  height = 5
+)
 # plot power curve scatter
 scots_wf_filtered <- scots_wf %>%
   filter(abs(error0) <= 0.2) %>%
@@ -222,11 +237,11 @@ scots_wf_filtered <- scots_wf_filtered %>%
 
 arrow::write_parquet(
   scots_wf_filtered,
-  file.path("data", "scotish_wfsamp_24.parquet")
+  file.path("data", "scottish_wfsamp_24.parquet")
 )
 
 scots_wf_filtered %>%
-  pull(halfHourEndTime) %>%
+  pull(time) %>%
   range()
 
 scots_wf_filtered %>%
@@ -234,6 +249,7 @@ scots_wf_filtered %>%
   unique()
 
 
+# PC estimation ####
 # fit 5 parameter power model per site
 
 pc5param <- function(x, A, B, C, D, G) {
@@ -248,10 +264,6 @@ G <- 1
 x <- seq(0, 30, length.out = 100)
 y <- pc5param(x, A, B, C, D, G)
 plot(x, y, type = "l")
-
-pc5param <- function(x, A, B, C, D, G) {
-  D + (A - D) / (1 + (x / C)^B)^G
-}
 
 A <- 1
 B <- 12
@@ -280,64 +292,7 @@ x <- seq(0, 30, length.out = 100)
 y <- pc6param(x, A, B, C, D, G, C2 = 22, B2 = -B * 3)
 plot(x, y, type = "l")
 
-
-pc8param <- function(x, A, B1, C1, D, G1, C2, B2, G2) {
-  D + (A - D) / (1 + (x / C1)^B1)^G / (1 + (x / C2)^B2)^G2
-}
-A <- 1
-B <- -12
-B2 <- 24
-C <- 8
-C2 <- 22
-D <- 0
-G <- 1
-G2 <- 1
-x <- seq(0, 30, length.out = 100)
-y <- pc8param(x, A, B, C, D = 0, G, C2, B2, G2)
-plot(x, y, type = "l")
-
-
-pc8param <- function(x, A, B1, C1, D, G1, C2, B2, G2) {
-  D + (A - D) / (1 + (x / C1)^B1)^G / (1 + (x / C2)^B2)^G2
-}
-loss <- function(par, x, y) {
-  # browser()
-  y_hat <- pc8param(
-    x,
-    A = par["A"],
-    B = par["B"],
-    C = par["C"],
-    D = par["D"],
-    G = par["G"],
-    C2 = par["C2"],
-    B2 = par["B2"],
-    G2 = par["G2"]
-  )
-  sum((y - y_hat)^2)
-}
-
-x <- pmax(1e-6, scots_wf_filtered2$ws_h)
-y <- scots_wf_filtered2$norm_potential
-# start <- c(
-#   A = max(y),
-#   C = median(x),
-#   B = -12,
-#   D = 0,
-#   G = 1,
-#   C2 = quantile(x, 0.999, names = FALSE),
-#   B2 = 24,
-#   G2 = 1
-# )
-
-# fit <- optim(
-#   par = start,
-#   fn = loss,
-#   x = x,
-#   y = y,
-#   method = "L-BFGS-B"
-# )
-
-#### par transformation
+## par transformation ####
 pc7param_r <- function(x, A_raw, B1_raw, C1, D, G_raw, C2, B2_raw) {
   B1 <- -exp(B1_raw) # always negative
   B2 <- exp(B2_raw) # always positive
@@ -394,8 +349,10 @@ fit <- optim(
   fn = loss,
   x = x,
   y = y,
-  method = "L-BFGS-B"
+  method = "L-BFGS-B",
+  control = list(maxit = 500)
 )
+fit$convergence
 fit$par
 raw_to_par <- function(par) {
   B1 <- -exp(unname(par["B1_raw"]))
@@ -413,7 +370,6 @@ raw_to_par <- function(par) {
     B2 = B2
   )
 }
-
 
 solution1 <- raw_to_par(fit$par)
 
@@ -454,11 +410,12 @@ scots_wf_filtered2 %>%
   scale_color_manual(values = blues9[c(7, 4)])
 # plot time series of wind speed and power
 ggsave(
-  "fig/scot_wfsamp_24_pc-est.png",
+  "fig/scottish_wfsamp_24_pc-est.png",
   width = 6,
   height = 4
 )
 
+# Plot 2 weeks of wind farms time series in sample ####
 source("aux_funct_ps.R")
 
 t0 <- as.POSIXct("2024-03-01 00:00:00", tz = "UTC")
