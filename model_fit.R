@@ -7,7 +7,7 @@ local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 args <- commandArgs(trailingOnly = TRUE)
 # browser()
 # Assign default values
-model_id <- 4
+model_id <- 1
 model_list_file <- "data/model_list_spatial.parquet"
 ofolder <- "etaderiv"
 save_model <- TRUE
