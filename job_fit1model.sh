@@ -14,4 +14,4 @@ source /etc/profile.d/modules.sh
 module load R/4.5
 
 # Run resolution code
-Rscript model_fit.R
+Rscript model_fit.R 1
