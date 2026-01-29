@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #$ -N psst1
-#$ -wd /exports/eddie/scratch/s2441782/spatial/prob-scen-spatial
+#$ -wd /exports/eddie/scratch/s2441782/spatial/prob-scen-spatial/
 #$ -o /exports/eddie/scratch/s2441782/spatial/jobfiles/
 #$ -e /exports/eddie/scratch/s2441782/spatial/jobfiles/
 #$ -M s2441782@ed.ac.uk
