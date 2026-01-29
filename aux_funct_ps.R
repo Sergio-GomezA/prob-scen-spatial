@@ -2764,7 +2764,7 @@ fit_inla_model <- function(
         tag = "wf.data"
       )
       # browser()
-      data <- inla.stack.data(wf.stack)
+      data <- inla.stack.data(wf.stack, wf.spde = wf.spde)
 
       # checks
       # 1. group exists and is integer
