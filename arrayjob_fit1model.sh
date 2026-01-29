@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#$ -N psst1
+#$ -N psST
 #$ -wd /exports/eddie/scratch/s2441782/scenarios/prob-scen-spatial/
 #$ -o /exports/eddie/scratch/s2441782/scenarios/jobfiles/
 #$ -e /exports/eddie/scratch/s2441782/scenarios/jobfiles/
