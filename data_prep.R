@@ -423,16 +423,16 @@ h = 24 * 14 # 14 days ahead
 # scots_wf_filtered$halfHourEndTime %>% tz()
 current_site <- scots_summary$site_name[1]
 
-for (current_site in scots_summary$site_name) {
+for (current_site in sample_wf) {
   # print(current_site)
   temp_plot <- plot_nh_ahead(
     data = scots_wf_filtered %>% filter(site_name == current_site),
-    mycols = c("norm_potential", "ws_h"),
+    mycols = c("actuals.cf", "ws.w"),
     col_labels = c("power", "wind speed"),
     t0 = t0,
     h = 24 * 14,
     show.fig = FALSE,
-    xvar = "halfHourEndTime",
+    xvar = "time",
     axis_2 = TRUE
   )
 
@@ -461,15 +461,15 @@ h = 24 * 14 # 14 days ahead
 # scots_wf_filtered$halfHourEndTime %>% tz()
 current_site <- scots_summary$site_name[1]
 
-for (current_site in scots_summary$site_name) {
+for (current_site in sample_wf) {
   # print(current_site)
   temp_plot <- plot_nh_ahead(
     data = scots_wf_filtered %>% filter(site_name == current_site),
-    mycols = c("norm_potential", "norm_power_est0"),
+    mycols = c("actuals.cf", "forecast.cf"),
     t0 = t0,
     h = 24 * 14,
     show.fig = FALSE,
-    xvar = "halfHourEndTime"
+    xvar = "time"
   )
 
   ggsave(

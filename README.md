@@ -1,7 +1,8 @@
 Converting Point Forecasts to probabilistic wind power scenarios for a set of wind farms
 
 - [ ] Data
-  - [ ] New sample of data with 40+ wind farms and less times
+  - [x] New sample of data with 35+ wind farms and less times
+  - [ ] Left 6 wf for oos checks
 
 - [ ] Figures
   - [ ] Regime behaviour
