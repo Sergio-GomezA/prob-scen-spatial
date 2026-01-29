@@ -8,7 +8,7 @@ args <- commandArgs(trailingOnly = TRUE)
 # browser()
 # Assign default values
 model_id <- 4
-model_list_file <- "data/model_top_eta2.rds"
+model_list_file <- "data/model_list_spatial.parquet"
 ofolder <- "etaderiv"
 save_model <- TRUE
 initial_values_file <- ""
@@ -207,7 +207,7 @@ ggsave("fig/meshhex_scottish_wfsamp.pdf", width = 6, height = 4)
 ########## Model specifications ###############################################
 
 # read model list
-model_list <- readRDS(model_list_file)
+model_list <- read_parquet(model_list_file)
 cat(
   sprintf(
     "Model list %s loaded\n",
@@ -217,12 +217,12 @@ cat(
 
 
 # extract current choice
-model_type <- model_list[model_id, 1:5]
-features_vec <- model_list[model_id, 6] %>%
+model_type <- model_list[model_id, 1:6]
+features_vec <- model_list[model_id, 7] %>%
   unlist() %>%
-  unname() %>%
-  # gsub("ar2", "ar1g", .)
-  gsub("ar2", "matern-ar1", .)
+  unname() #%>%
+# gsub("ar2", "ar1g", .)
+# gsub("ar2", "matern-ar1", .)
 # features_vec <- features_vec[-3]
 cat(
   sprintf(

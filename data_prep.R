@@ -489,3 +489,29 @@ for (current_site in sample_wf) {
 # plot PC derived estimate and observed power
 
 # recover wind speed for times without power observations
+
+# model list file ####
+
+model_list_fname <- "model_list_spatial.parquet"
+
+model_list_df <- data.frame(
+  id = 1:4
+) %>%
+  mutate(
+    family = "gaussian",
+    fderiv = c("fd", rep("eta", 3)),
+    out = "error",
+    transformation = "normalised",
+    response = "err.cf",
+    all_combinations = list(
+      c("ws.w_group", "etaderiv"),
+      c("ws.w_group", "ar1g", "etaderiv"),
+      c("ws.w_group", "matern-ar1"),
+      c("ws.w_group", "matern-ar1", "etaderiv")
+    )
+  )
+
+write_parquet(
+  model_list_df,
+  file.path("data", model_list_fname)
+)

@@ -37,3 +37,9 @@ install.packages(
   temp_lib,
   dependencies = TRUE
 )
+
+install.packages(
+  c("ggthemes"),
+  temp_lib,
+  dependencies = TRUE
+)
