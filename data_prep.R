@@ -13,8 +13,8 @@ require(sf)
 require(ggthemes)
 require(ggsci)
 
-source("aux_funct.R")
 source("aux_funct_ps.R")
+source("aux_funct.R")
 source("functions_probscen.R")
 
 # Global settings ####
@@ -252,10 +252,6 @@ scots_wf_filtered %>%
 # PC estimation ####
 # fit 5 parameter power model per site
 
-pc5param <- function(x, A, B, C, D, G) {
-  D + (A - D) / (1 + (x / C)^B)^G
-}
-
 A <- 1
 B <- -12
 C <- 8
@@ -274,13 +270,6 @@ x <- seq(0, 30, length.out = 100)
 y <- pc5param(x, A, B, C, D, G)
 plot(x, y, type = "l")
 
-pc6param <- function(x, A, B, C, D, G, C2, B2 = -B) {
-  ifelse(
-    x < (C + C2) / 2,
-    D + (A - D) / (1 + (x / C)^B)^G,
-    D + (A - D) / (1 + (x / C2)^B2)^G
-  )
-}
 
 A <- 1
 B <- -12
@@ -293,17 +282,7 @@ y <- pc6param(x, A, B, C, D, G, C2 = 22, B2 = -B * 3)
 plot(x, y, type = "l")
 
 ## par transformation ####
-pc7param_r <- function(x, A_raw, B1_raw, C1, D, G_raw, C2, B2_raw) {
-  B1 <- -exp(B1_raw) # always negative
-  B2 <- exp(B2_raw) # always positive
-  A <- D + exp(A_raw) # ensures A > D
-  G <- exp(G_raw) # ensures G > 0
 
-  D +
-    (A - D) /
-      (1 + (x / C1)^B1)^G /
-      (1 + (x / C2)^B2)^G
-}
 raw_to_par <- function(par) {
   B1 <- -exp(par["B1_raw"]) # always negative
   B2 <- exp(par["B2_raw"]) # always positive
@@ -354,22 +333,7 @@ fit <- optim(
 )
 fit$convergence
 fit$par
-raw_to_par <- function(par) {
-  B1 <- -exp(unname(par["B1_raw"]))
-  B2 <- exp(unname(par["B2_raw"]))
-  A <- unname(par["D"]) + exp(unname(par["A_raw"]))
-  G <- exp(unname(par["G_raw"]))
 
-  c(
-    A = A,
-    B1 = B1,
-    C1 = unname(par["C1"]),
-    D = unname(par["D"]),
-    G = G,
-    C2 = unname(par["C2"]),
-    B2 = B2
-  )
-}
 
 solution1 <- raw_to_par(fit$par)
 
@@ -499,7 +463,7 @@ model_list_df <- data.frame(
 ) %>%
   mutate(
     family = "gaussian",
-    fderiv = c("fd", rep("eta", 3)),
+    fderiv = "eta",
     out = "error",
     transformation = "normalised",
     response = "err.cf",
@@ -509,6 +473,9 @@ model_list_df <- data.frame(
       c("ws.w_group", "matern-ar1"),
       c("ws.w_group", "matern-ar1", "etaderiv")
     )
+  ) %>%
+  mutate(
+    fderiv = ifelse(id == 3, "fd", fderiv)
   )
 
 write_parquet(

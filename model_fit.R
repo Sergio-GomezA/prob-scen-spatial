@@ -118,8 +118,15 @@ if (!dir.exists(mod_obj_path)) {
 data.scaled <- read_parquet(input_data)
 # scaling_params <- read_parquet(input_scalingpars)
 cat(sprintf(
-  "Input file %s loaded\n",
-  input_data
+  "
+Input file %s loaded\nNumber of rows in full data: %d\nNumber of wind farms: %d
+Spanning dates: %s to %s
+",
+  input_data,
+  nrow(data.scaled),
+  data.scaled %>% pull(site_name) %>% unique() %>% length(),
+  min(data.scaled$time) %>% format(., "%Y-%m-%d %H:%M"),
+  max(data.scaled$time) %>% format(., "%Y-%m-%d %H:%M")
 ))
 data_masked <- history_window(
   data.scaled,
@@ -128,13 +135,7 @@ data_masked <- history_window(
   mask = mask_opt
 ) %>%
   mutate(
-    site_id = as.integer(factor(site_id)),
-    # time_num = as.numeric(time),
-    # t = ave(
-    #   time_num,
-    #   site_id,
-    #   FUN = function(x) seq_along(x)
-    # )
+    site_id = as.integer(factor(site_id))
   ) %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
   mutate(
@@ -154,26 +155,15 @@ time_grid <- seq(
   by = "1 hour"
 )
 data_masked$time_idx <- match(data_masked$time, time_grid)
-data_masked$time_idx %>% range()
-# A1 <- inla.spde.make.A(
-#   mesh = wf.mesh,
-#   loc = cbind(data_masked$x, data_masked$y),
-#   group = data_masked$t
-# )
+time_idx_range <- data_masked$time_idx %>% range()
+cat(sprintf(
+  "Time reindexed ranging from %d to %d\n",
+  time_idx_range[1],
+  time_idx_range[2]
+))
 
-# wf.spde <- inla.spde2.pcmatern(
-#   mesh = wf.mesh,
-#   alpha = 2,
-#   prior.range = c(20, 0.5), # P(range < 50km) = 0.5
-#   prior.sigma = c(1, 0.5)
-# )
-# spde_idx <- inla.spde.make.index(
-#   name = "spatial",
-#   n.spde = wf.spde$n.spde,
-#   n.group = length(time_grid)
-# )
-# ncol(A1)
-# wf.spde$n.spde * length(time_grid)
+
+cat("Building spatial mesh\n")
 # length(spde_idx$spatial)
 # data_masked %>%
 #   select(x, y) %>%
@@ -192,6 +182,7 @@ wf.mesh <- fm_mesh_2d(
   # offset = -0.2,
   cutoff = 5
 )
+
 wf.mesh$n
 
 
@@ -226,7 +217,7 @@ features_vec <- model_list[model_id, 7] %>%
 # features_vec <- features_vec[-3]
 cat(
   sprintf(
-    "Running model type: %s \nFeatures included: %s",
+    "Running model type: %s \nFeatures included: %s\n",
     paste0(model_type, collapse = ", "),
     paste0(features_vec, collapse = ", ")
   )

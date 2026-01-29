@@ -1676,3 +1676,42 @@ plot.hyper.dens <- function(
 
   print(p.dens)
 }
+
+
+pc5param <- function(x, A, B, C, D, G) {
+  D + (A - D) / (1 + (x / C)^B)^G
+}
+pc6param <- function(x, A, B, C, D, G, C2, B2 = -B) {
+  ifelse(
+    x < (C + C2) / 2,
+    D + (A - D) / (1 + (x / C)^B)^G,
+    D + (A - D) / (1 + (x / C2)^B2)^G
+  )
+}
+pc7param_r <- function(x, A_raw, B1_raw, C1, D, G_raw, C2, B2_raw) {
+  B1 <- -exp(B1_raw) # always negative
+  B2 <- exp(B2_raw) # always positive
+  A <- D + exp(A_raw) # ensures A > D
+  G <- exp(G_raw) # ensures G > 0
+
+  D +
+    (A - D) /
+      (1 + (x / C1)^B1)^G /
+      (1 + (x / C2)^B2)^G
+}
+raw_to_par <- function(par) {
+  B1 <- -exp(unname(par["B1_raw"]))
+  B2 <- exp(unname(par["B2_raw"]))
+  A <- unname(par["D"]) + exp(unname(par["A_raw"]))
+  G <- exp(unname(par["G_raw"]))
+
+  c(
+    A = A,
+    B1 = B1,
+    C1 = unname(par["C1"]),
+    D = unname(par["D"]),
+    G = G,
+    C2 = unname(par["C2"]),
+    B2 = B2
+  )
+}
