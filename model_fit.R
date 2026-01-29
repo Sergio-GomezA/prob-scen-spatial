@@ -73,7 +73,8 @@ source("aux_funct_ps.R")
 
 t1 <- "2024-06-30 23:00:00" %>% as.POSIXct(tz = "UTC")
 # training window in months
-window <- 1
+window <- 7
+wind_units <- "days"
 
 # remove last 24 hours
 mask_opt <- TRUE
@@ -132,6 +133,7 @@ data_masked <- history_window(
   data.scaled,
   t1,
   window = window,
+  units = wind_units,
   mask = mask_opt
 ) %>%
   mutate(
@@ -172,7 +174,7 @@ cat("Building spatial mesh\n")
 loc_unique <- data_masked %>%
   distinct(x, y) %>%
   as.matrix()
-bnd <- fm_extensions(loc_unique, convex = c(-.2, -.3))
+bnd <- fm_extensions(loc_unique, convex = c(-.15, -.25))
 # ggplot() + geom_sf(data = bnd[[1]])
 wf.mesh <- fm_mesh_2d(
   # loc = loc_unique,
@@ -305,7 +307,7 @@ cat(sprintf("Saving output in file %s\n", fname))
 mend_t <- Sys.time()
 run_time <- difftime(mend_t, mstart_t)
 cat(sprintf(
-  "Whole process ended for model id: %d in %.2f %s\n",
+  "Whole process ended for model id %d in %.2f %s\n",
   model_id,
   run_time,
   units(run_time)

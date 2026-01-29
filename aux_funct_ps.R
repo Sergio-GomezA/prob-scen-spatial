@@ -2422,7 +2422,11 @@ history_window <- function(
   ...
 ) {
   # browser()
-  t0 <- t - months(window)
+  t0 <- case_when(
+    units == "months" ~ t - months(window),
+    units == "days" ~ t - days(window),
+    units == "hours" ~ t - hours(window)
+  )
   t1 <- t + hours(h)
 
   # resulta <- scen.data %>%
