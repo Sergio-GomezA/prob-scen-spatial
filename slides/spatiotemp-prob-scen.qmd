@@ -5,7 +5,7 @@ author:
 institute:
    - $^1$School of Mathematics, University of Edinburgh
 institute-short: "UoE"
-date: "2026-01-28"
+date: "2026-02-04"
 format: 
   beamer:
     theme: Rochester
@@ -15,7 +15,7 @@ format:
     toc: true
     slide-level: 2
     split-bib: true
-    output-file: "st-prob-scen_slides_26-01-28.pdf"
+    output-file: "st-prob-scen_slides_26-02-04.pdf"
 header-includes:
   - \usepackage{graphicx}
 fontsize: 12pt
@@ -41,6 +41,7 @@ library(rnaturalearthdata)
 require(ggthemes)
 require(arrow)
 pre_path <- ifelse(grepl("prob-scen-spatial$",getwd()),getwd(),"..")
+# source(file.path(pre_path,"aux_funct.R"))
 source(file.path(pre_path,"aux_funct_ps.R"))
 path <- "~/Documents/proj2/spatial"
 ```
@@ -55,16 +56,314 @@ theme_set(theme_bw())
 ## Progress check {#sec-updates .unnumbered .nolink}
 
 ### New
-- PC fitting
 - Spatial modelling
 - Model estimates
+- PC fitting
 
 ### Next Steps
 - OOS validation
 - Add case study to overleaf
 - Address other comments
 
-# Power Curve fitting
+
+# Spatial modelling for probabilistic scenarios
+
+## Model shapes
+
+New models are modifications of the Normalised Error with Normal distribution (NEN)
+
+- Model list
+  - ST-PR-NEN
+  - Power Ramp (PR-NEN)
+  - AR1 (PR-AR1-NEN)
+  - Matern-AR1 (ST-NEN)
+
+- Pending
+  - ST-RS-PR-NEN
+
+## Data
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+- For US data:
+  - Length: 18 months
+  - Resolution: hourly
+  - Locations: 1 region aggregated
+- UK data:
+  - Length: 1 to 3 months
+  - Resolution: hourly
+  - Locations 10 Scottish wind farms
+
+Trying to keep $\text{fit time} < 60\text{min}$
+:::
+
+::: {.column width="50%"}
+\centering
+\small 10 Scottish wind farms
+
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/Scottish_wfsamp_24_map.pdf}
+:::
+
+:::
+
+## ST-PR-NEN model
+
+\centering
+\small
+Parameters summary
+
+```{r}
+# proj_dir <- "/home/s2441782/ownCloud-s2441782@datasync.ed.ac.uk/projects/proj2/prob-scen-spatial"
+# slides_dir <- "/home/s2441782/ownCloud-s2441782@datasync.ed.ac.uk/projects/proj2/prob-scen-spatial/slides"
+# setwd(slides_dir)
+# setwd(proj_dir)
+model_fname <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.rds"
+
+prefix <- model_fname %>% gsub(".rds", "", .)
+params_fname <- file.path(
+  pre_path,
+  "data",
+  paste0("params_", prefix, ".csv")
+)
+
+if (!file.exists(params_fname)) {
+  save_model_figures(model_fname)
+}
+
+parameter_summaries <- read.csv(params_fname)
+parameter_summaries %>%
+  kable(
+    digits = 2, #c(2, 0, 0, 1, 2, 2, 2),
+    format = "latex",
+    escape = FALSE
+  ) %>%
+  kable_styling(
+    latex_options = "scale_down"
+  )
+
+# print(mod.temp$.args$formula)
+
+
+```
+
+## Posterior distributions
+::: {.columns}
+
+::: {.column width="50%"}
+\centering
+\small Effects
+```{r fig.height = 3, fig.show="hold" ,results="asis"}
+
+eff_pattern <- sprintf("^peff.*_mod_%s.pdf$", prefix)
+eff_plots <- list.files(path = "../fig", pattern = eff_pattern,full.names = TRUE)
+
+knitr::include_graphics(eff_plots)
+```
+:::
+
+::: {.column width="50%"}
+
+\centering
+\small Hyperparameters
+```{r fig.height = 5}
+
+hyper_pattern <- sprintf("^phyper.*_mod_%s.pdf$", prefix)
+hyper_plots <- list.files(path = "../fig", pattern = hyper_pattern,full.names = TRUE)
+
+knitr::include_graphics(hyper_plots)
+```
+:::
+
+:::
+
+## PR-NEN model
+
+::: {.columns}
+
+::: {.column width="60%"}
+\centering
+\small
+Parameters summary
+\tiny
+```{r}
+# path <- "~/Documents/proj2/spatial/model_objects/"
+# fname <- file.path(pre_path,"data", "PR-NEN_summary.csv")
+
+# mod.temp <- readRDS(file.path(
+#   path,
+#   "r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"
+# ))
+
+# # print(mod.temp$.args$formula)
+# temp_summary <- cbind(
+#   mod.temp$summary.fixed[-7] %>% t(),
+#   mod.temp$summary.hyperpar %>% t()
+# ) %>%
+#   as.data.frame() %>%
+#   setNames(
+#     c("Intercept", "Gau prec", "Wind RW prec", "PR effect")
+#   )
+# write.csv(temp_summary, fname)
+
+# temp_summary %>%
+#   kable(digits = c(2, 1, 0, 2), format = "latex") %>%
+#   kable_styling(
+#     latex_options = "scale_down"
+#   )
+
+
+```
+:::
+
+::: {.column width="40%"}
+
+\centering
+\small Effects
+```{r fig.height = 3}
+
+# plot.hyper.dens(mod.temp)
+
+# plot.effects(mod.temp,"ws.w_group")
+```
+\small Hyperparameters
+```{r fig.height = 5}
+
+# plot.hyper.dens(mod.temp)
+
+# plot.effects(mod.temp,"ws.w_group")
+```
+:::
+
+:::
+
+
+## PR-AR1-NEN model
+
+::: {.columns}
+
+::: {.column width="60%"}
+\centering
+\small
+Parameters summary
+\tiny
+```{r}
+# path <- "~/Documents/proj2/spatial/model_objects/"
+# mod.temp <- readRDS(file.path(path,"r_err.cf_f_gaussian_eta_feat_ws.w_group-ar1g-etaderiv.rds"))
+
+# # print(mod.temp$.args$formula)
+# cbind(
+# mod.temp$summary.fixed[-7] %>% t(),
+# mod.temp$summary.hyperpar %>% t() 
+# ) %>% 
+#     as.data.frame() %>% 
+#     setNames(
+#         c("Intercept", "Gau prec","Wind RW prec","AR prec","Rho T","Group Rho","PR effect")
+#     ) %>% 
+#     kable(digits = c(2,0,2,2,2,2,2), format = "latex") %>% 
+#     kable_styling(
+#       latex_options = "scale_down"
+#     )
+
+```
+:::
+
+::: {.column width="40%"}
+
+\centering
+\small Effects
+```{r fig.height = 3}
+
+
+# plot.effects(mod.temp,"ws.w_group")
+```
+\small Hyperparameters
+```{r fig.height = 5}
+
+# plot.hyper.dens(mod.temp)
+
+```
+:::
+
+:::
+
+
+## ST-NEN model
+
+::: {.columns}
+
+::: {.column width="60%"}
+\centering
+\small
+Parameters summary
+\tiny
+```{r}
+# path <- "~/Documents/proj2/spatial/model_objects/"
+# mod.temp <- readRDS(file.path(path,"r_err.cf_f_gaussian_fd_feat_ws.w_group-matern-ar1.rds"))
+
+# # print(mod.temp$.args$formula)
+# cbind(
+# mod.temp$summary.fixed[-7] %>% t(),
+# mod.temp$summary.hyperpar %>% t() 
+# ) %>% 
+#     as.data.frame() %>% 
+#     setNames(
+#         c("Intercept", "Gau prec","Wind RW prec","Range","Spat sd","Rho t")
+#     ) %>% 
+#     kable(digits = c(2,0,0,1,2,2), format = "latex") %>% 
+#     kable_styling(
+#       latex_options = "scale_down"
+#     )
+
+```
+:::
+
+::: {.column width="40%"}
+
+\centering
+\small Effects
+```{r fig.height = 3}
+# 
+# plot.effects(mod.temp,"ws.w_group")
+```
+\small Hyperparameters
+```{r fig.height = 5}
+
+# plot.hyper.dens(mod.temp)
+
+```
+:::
+
+:::
+
+
+# Appendix 
+
+## Map and mesh
+
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+\footnotesize
+\centering
+Map of wind farm samples
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/Scottish_wfsamp_24_map.pdf}
+:::
+
+::: {.column width="50%"}
+\centering
+\small Mesh
+
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/meshhex_Scottish_wfsamp.pdf}
+:::
+
+:::
+
+
+# Power Curve fitting{-}
 
 ## Classic parametric shape
 
@@ -193,323 +492,6 @@ solution1 %>%
 \small Data and power curve estimate
 
 \includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scot_wfsamp_24_pc-est.png}
-:::
-
-:::
-
-
-# Spatial modelling
-
-## Parametric fit for Scottish wind farms
-
-::: {.columns}
-
-::: {.column width="50%"}
-
-\footnotesize
-
-- We can fit the parametric shape using optim
-- As long as there is a reasonable amount of points showing the cut-off optim can converge
-
-\tiny
-\centering
-Estimates from data
-```{r}
-solution1 <- read.csv(file.path(pre_path,"data/pc_7pars_wfsamp_24.csv")) %>%
-  rename(par = X)
-solution1 %>%
-  kable(digits = 2, format = "latex") %>%
-  kable_styling(full_width = FALSE)
-```
-:::
-
-::: {.column width="50%"}
-\centering
-\small Data and power curve estimate
-
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scot_wfsamp_24_pc-est.png}
-:::
-
-:::
-
-
-# Spatial modelling for probabilistic scenarios
-
-## Model shapes
-
-New models are modifications of the Normalised Error with Normal distribution (NEN)
-
-- Model list
-  - Power Ramp (PR-NEN)
-  - AR1 (PR-AR1-NEN)
-  - Matern-AR1 (ST-NEN)
-
-- Pending
-  - ST-PR-NEN
-  - ST-RS-PR-NEN
-
-## Data
-
-::: {.columns}
-
-::: {.column width="50%"}
-
-- For US data:
-  - Length: 18 months
-  - Resolution: hourly
-  - Locations: 1 region aggregated
-- UK data:
-  - Length: 1 to 3 months
-  - Resolution: hourly
-  - Locations 10 Scottish wind farms
-
-Trying to keep $\text{fit time} < 10\text{min}$
-:::
-
-::: {.column width="50%"}
-\centering
-\small 10 Scottish wind farms
-
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/Scottish_wfsamp_24_map.pdf}
-:::
-
-:::
-
-## PR-NEN model
-
-::: {.columns}
-
-::: {.column width="60%"}
-\centering
-\small
-Parameters summary
-\tiny
-```{r}
-path <- "~/Documents/proj2/spatial/model_objects/"
-fname <- file.path(pre_path,"data", "PR-NEN_summary.csv")
-
-mod.temp <- readRDS(file.path(
-  path,
-  "r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"
-))
-
-# print(mod.temp$.args$formula)
-temp_summary <- cbind(
-  mod.temp$summary.fixed[-7] %>% t(),
-  mod.temp$summary.hyperpar %>% t()
-) %>%
-  as.data.frame() %>%
-  setNames(
-    c("Intercept", "Gau prec", "Wind RW prec", "PR effect")
-  )
-write.csv(temp_summary, fname)
-
-temp_summary %>%
-  kable(digits = c(2, 1, 0, 2), format = "latex") %>%
-  kable_styling(
-    latex_options = "scale_down"
-  )
-
-
-```
-:::
-
-
-
-::: {.column width="40%"}
-
-\centering
-\small Effects
-```{r fig.height = 3}
-
-# plot.hyper.dens(mod.temp)
-
-plot.effects(mod.temp,"ws.w_group")
-```
-\small Hyperparameters
-```{r fig.height = 5}
-
-plot.hyper.dens(mod.temp)
-
-# plot.effects(mod.temp,"ws.w_group")
-```
-:::
-
-:::
-
-
-## PR-AR1-NEN model
-
-::: {.columns}
-
-::: {.column width="60%"}
-\centering
-\small
-Parameters summary
-\tiny
-```{r}
-path <- "~/Documents/proj2/spatial/model_objects/"
-mod.temp <- readRDS(file.path(path,"r_err.cf_f_gaussian_eta_feat_ws.w_group-ar1g-etaderiv.rds"))
-
-# print(mod.temp$.args$formula)
-cbind(
-mod.temp$summary.fixed[-7] %>% t(),
-mod.temp$summary.hyperpar %>% t() 
-) %>% 
-    as.data.frame() %>% 
-    setNames(
-        c("Intercept", "Gau prec","Wind RW prec","AR prec","Rho T","Group Rho","PR effect")
-    ) %>% 
-    kable(digits = c(2,0,2,2,2,2,2), format = "latex") %>% 
-    kable_styling(
-      latex_options = "scale_down"
-    )
-
-```
-:::
-
-::: {.column width="40%"}
-
-\centering
-\small Effects
-```{r fig.height = 3}
-
-
-plot.effects(mod.temp,"ws.w_group")
-```
-\small Hyperparameters
-```{r fig.height = 5}
-
-plot.hyper.dens(mod.temp)
-
-```
-:::
-
-:::
-
-
-## ST-NEN model
-
-::: {.columns}
-
-::: {.column width="60%"}
-\centering
-\small
-Parameters summary
-\tiny
-```{r}
-path <- "~/Documents/proj2/spatial/model_objects/"
-mod.temp <- readRDS(file.path(path,"r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1.rds"))
-
-# print(mod.temp$.args$formula)
-cbind(
-mod.temp$summary.fixed[-7] %>% t(),
-mod.temp$summary.hyperpar %>% t() 
-) %>% 
-    as.data.frame() %>% 
-    setNames(
-        c("Intercept", "Gau prec","Wind RW prec","Range","Spat sd","Rho t")
-    ) %>% 
-    kable(digits = c(2,0,0,1,2,2), format = "latex") %>% 
-    kable_styling(
-      latex_options = "scale_down"
-    )
-
-```
-:::
-
-::: {.column width="40%"}
-
-\centering
-\small Effects
-```{r fig.height = 3}
-
-plot.effects(mod.temp,"ws.w_group")
-```
-\small Hyperparameters
-```{r fig.height = 5}
-
-plot.hyper.dens(mod.temp)
-
-```
-:::
-
-:::
-
-
-## ST-PR-NEN model
-
-::: {.columns}
-
-::: {.column width="60%"}
-\centering
-\small
-Parameters summary
-\tiny
-```{r}
-path <- "~/Documents/proj2/spatial/model_objects/"
-mod.temp <- readRDS(
-  file.path(
-    path,
-    "r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.rds"
-  )
-)
-
-# print(mod.temp$.args$formula)
-cbind(
-  mod.temp$summary.fixed[-7] %>% t(),
-  mod.temp$summary.hyperpar %>% t()
-) %>%
-  as.data.frame() %>%
-  setNames(
-    c("Intercept", "Gau prec", "Wind RW prec", "Range", "Spat sd", "Rho t", "PR effect")
-  ) %>%
-  kable(digits = c(2, 0, 0, 1, 2, 2, 2), format = "latex") %>%
-  kable_styling(
-    latex_options = "scale_down"
-  )
-
-```
-:::
-
-::: {.column width="40%"}
-
-\centering
-\small Effects
-```{r fig.height = 3}
-
-plot.effects(mod.temp,"ws.w_group")
-```
-\small Hyperparameters
-```{r fig.height = 5}
-
-plot.hyper.dens(mod.temp)
-
-```
-:::
-
-:::
-
-# Appendix 
-
-## Map and mesh
-
-
-::: {.columns}
-
-::: {.column width="50%"}
-
-\footnotesize
-\centering
-Map of wind farm samples
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/Scottish_wfsamp_24_map.pdf}
-:::
-
-::: {.column width="50%"}
-\centering
-\small Mesh
-
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/meshhex_Scottish_wfsamp.pdf}
 :::
 
 :::

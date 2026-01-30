@@ -95,10 +95,48 @@ plot.effects <- function(
   invisible(list(data = plot_data, fig = p1))
 }
 
+plot.effects.spatial <- function(
+  inla.model,
+  rand.effect = "spatial",
+  show.fig = TRUE
+) {
+  spde <- inla.model$.args$data$wf.spde
+  mesh <- spde$mesh
+
+  field_mean <- field_mean <- mod.temp$summary.random[[rand.effect]]$mean
+
+  # projector
+  proj <- inla.mesh.projector(
+    mesh,
+    xlim = range(mesh$loc[, 1]),
+    ylim = range(mesh$loc[, 2]),
+    dims = c(200, 200)
+  )
+
+  # project mean field
+  field_grid <- inla.mesh.project(proj, field_mean)
+
+  df <- expand.grid(x = proj$x, y = proj$y)
+  df$z <- as.vector(field_grid)
+
+  p <- ggplot(df, aes(x, y, fill = z)) +
+    geom_raster() +
+    coord_equal() +
+    scale_fill_distiller(palette = "RdBu") +
+    labs(fill = "Spatial effect") +
+    theme_minimal()
+
+  if (show.fig) {
+    print(p)
+  }
+  invisible(data = df, plot = p)
+}
+
 plot.hyper.dens <- function(
   inla_model,
   facet.cols = 2,
   logx = FALSE,
+  show.fig = TRUE,
   ...
 ) {
   # Extract the hyperparameter densities into a data frame for plotting
@@ -149,7 +187,11 @@ plot.hyper.dens <- function(
     ) +
     theme_minimal()
 
-  print(p.dens)
+  if (show.fig) {
+    print(p.dens)
+  }
+
+  invisible(p.dens)
 }
 
 
@@ -3330,3 +3372,90 @@ power_ramp_freq <- function(
     ) %>%
     mutate(model = model_name, version = version)
 }
+
+
+# write.csv(name_dict, "data/mod_components_names_dict.csv", row.names = FALSE)
+pre_path <- ifelse(grepl("slides$", getwd()), "../", "")
+name_dict <- read.csv(paste0(pre_path, "data/mod_components_names_dict.csv"))
+
+save_model_figures <- function(
+  mod_fname,
+  path = "~/Documents/proj2/spatial/model_objects/"
+) {
+  mod.temp <- readRDS(
+    file.path(
+      path,
+      mod_fname
+    )
+  )
+
+  components_df <- with(
+    mod.temp,
+    data.frame(
+      codes = c(
+        summary.fixed %>% rownames(),
+        summary.random %>% names(),
+        summary.hyperpar %>% rownames()
+      ),
+      type = c(
+        rep("fixed", nrow(summary.fixed)),
+        rep("random", length(summary.random)),
+        rep("hyperpar", nrow(summary.hyperpar))
+      )
+    )
+  )
+
+  parameter_summaries <- cbind(
+    mod.temp$summary.fixed %>% select(-kld) %>% t(),
+    mod.temp$summary.hyperpar %>% t()
+  ) %>%
+    as.data.frame()
+
+  print_names <- data.frame(
+    code = parameter_summaries %>% names()
+  ) %>%
+    left_join(
+      name_dict,
+      by = "code"
+    ) %>%
+    pull(name)
+
+  parameter_summaries <- parameter_summaries %>%
+    setNames(
+      print_names
+    )
+
+  prefix <- mod_fname %>% gsub(".rds", "", .)
+  write.csv(
+    parameter_summaries,
+    file.path(
+      "data",
+      paste0("params_", prefix, ".csv")
+    )
+  )
+
+  rand_effects <- components_df %>% filter(type == "random") %>% pull(codes)
+  # browser()
+  for (effect in rand_effects[!grepl("spatial|eta", rand_effects)]) {
+    p <- plot.effects(mod.temp, effect, show.fig = FALSE)
+    ggsave(
+      sprintf("fig/peff_%s_mod_%s.pdf", effect, prefix),
+      p$fig,
+      width = 6,
+      height = 4
+    )
+  }
+
+  phyper <- plot.hyper.dens(mod.temp, show.fig = FALSE)
+  ggsave(
+    sprintf("fig/phyper_mod_%s.pdf", prefix),
+    phyper,
+    width = 6,
+    height = 4
+  )
+}
+
+# mod.temp$summary.random$spatial$mean
+
+# mod.temp$.args$data$wf.spde$n.spde
+# mod.temp$.args$data$st.group %>% head()
