@@ -100,6 +100,7 @@ plot.effects.spatial <- function(
   rand.effect = "spatial",
   show.fig = TRUE
 ) {
+  browser()
   spde <- inla.model$.args$data$wf.spde
   mesh <- spde$mesh
 
@@ -2644,6 +2645,7 @@ fit_inla_model <- function(
   gcpo = TRUE,
   n.groups = 3,
   mesh = NULL,
+  save_stack = FALSE,
   ...
 ) {
   # browser()
@@ -2809,6 +2811,7 @@ fit_inla_model <- function(
         ),
         tag = "wf.data"
       )
+
       # browser()
       data <- inla.stack.data(wf.stack, wf.spde = wf.spde)
 
@@ -2826,6 +2829,19 @@ fit_inla_model <- function(
   # matern covariance options
   if (any(grepl("matern", features_vec))) {
     control_pred <- c(control_pred, A = inla.stack.A(wf.stack))
+    if (save_stack) {
+      stack_fname <- sprintf(
+        "misc/stack_r_%s_f_%s_%s_feat_%s.csv",
+        model_type$response,
+        model_type$family,
+        model_type$fderiv,
+        # model list
+        # sub("^model_(.*)\\.rds$", "\\1", model_list_file),
+        # id
+        paste(features_vec, collapse = "-")
+      )
+      saveRDS(wf.stack, stack_fname)
+    }
   }
 
   # build initials from arguments
