@@ -13,8 +13,8 @@ Converting Point Forecasts to probabilistic wind power scenarios for a set of wi
   - [x] Job files for each
   - [x] PR-NEN (1)
   - [x] PR-AR-NEN (2)
-  - [ ] ST-NEN (3)
-  - [ ] ST-PR-NEN (4)
+  - [x] ST-NEN (3)
+  - [x] ST-PR-NEN (4)
   - [ ] ST2-PR-NEN (non-separable)
   - [ ] Regime switching
 
