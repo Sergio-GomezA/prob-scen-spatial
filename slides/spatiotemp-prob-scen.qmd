@@ -21,7 +21,6 @@ header-includes:
 fontsize: 12pt
 aspectratio: 169
 editor: source
-
 ---
 
 ```{r include=FALSE}
@@ -148,7 +147,7 @@ parameter_summaries %>%
 
 ```
 
-## Posterior distributions
+## Effects
 ::: {.columns}
 
 ::: {.column width="50%"}
@@ -160,6 +159,37 @@ eff_pattern <- sprintf("^peff.*_mod_%s.pdf$", prefix)
 eff_plots <- list.files(path = "../fig", pattern = eff_pattern,full.names = TRUE)
 
 knitr::include_graphics(eff_plots)
+
+```
+:::
+
+::: {.column width="50%"}
+
+\centering
+\small Spatial effect
+```{r fig.height = 5}
+
+p_pattern <- sprintf("^speff.*_mod_%s.pdf$", prefix)
+p_plots <- list.files(path = "../fig", pattern = p_pattern,full.names = TRUE)
+
+knitr::include_graphics(p_plots)
+```
+:::
+
+:::
+
+## Posterior distributions
+::: {.columns}
+
+::: {.column width="50%"}
+\centering
+\small Day-ahead forecast
+```{r fig.height = 3, fig.show="hold" ,results="asis"}
+
+ts_plots <- "../fig/ts_wfsamp_24-07-01.pdf"
+
+knitr::include_graphics(ts_plots)
+
 ```
 :::
 

@@ -1,3 +1,7 @@
+require(tidyverse)
+require(INLA)
+theme_set(theme_bw())
+
 source("aux_funct_ps.R")
 model_fname <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.rds"
 model_path <- "~/Documents/proj2/spatial/model_objects/"
@@ -6,7 +10,7 @@ mod.temp <- readRDS(file.path(model_path, model_fname))
 stack_fname <- paste0("misc/stack_", model_fname)
 stack <- readRDS(stack_fname)
 inla.stack.index(stack, "wf.stack")$data %>% head()
-plot.effects.spatial(mod.temp)
+# plot.effects.spatial(mod.temp)
 
 stack %>% attributes()
 stack$A %>% dim()
@@ -58,7 +62,22 @@ fit_obs_df %>%
   scale_color_manual(
     values = c("darkred", "darkblue"),
     breaks = c("model", "observed")
-  )
+  ) +
+  theme(
+    legend.position = "inside",
+    legend.position.inside = c(0.92, 0.05),
+    legend.background = element_blank(), # Makes background completely transparent
+    legend.box.background = element_rect(fill = NA, color = NA), # No border
+    axis.text = element_text(angle = 90)
+  ) +
+  labs(col = "", x = "hour", y = "normalised power") +
+  scale_x_datetime(date_labels = "%H:%M")
+ggsave(
+  "fig/ts_wfsamp_24-07-01.pdf",
+  width = 10,
+  height = 7
+)
+
 ## ----meanrf--------------------------------------------------------------
 cor(fit_obs_df$actuals.cf, fit_obs_df$fitted)
 
@@ -124,11 +143,23 @@ pts_sf <- st_as_sf(
 )
 inside <- st_within(pts_sf, bnd[[1]], sparse = FALSE)[, 1]
 idx_inside <- which(inside)
-par(mfrow = c(4, 3), mar = c(0, 0, 0, 0))
-for (j in 1:24) {
+pdf(
+  "fig/speff_ws.w_group_mod_r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.pdf",
+  width = 10,
+  height = 7
+)
+par(mfrow = c(4, 3), mar = c(1, 1, 1, 2))
+
+
+for (j in seq(2, 24, 2)) {
   xmean[[j]][-idx_inside] <- NA
   book.plot.field(
     list(x = projgrid$x, y = projgrid$y, z = xmean[[j]]),
-    zlim = round(range(unlist(xmean), na.rm = TRUE), 1)
+    zlim = round(range(unlist(xmean), na.rm = TRUE), 1),
+    main = sprintf(
+      "Time: %s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    )
   )
 }
+dev.off()
