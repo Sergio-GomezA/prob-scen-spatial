@@ -156,6 +156,7 @@ time_grid <- seq(
   to = max(data_masked$time),
   by = "1 hour"
 )
+
 data_masked$time_idx <- match(data_masked$time, time_grid)
 time_idx_range <- data_masked$time_idx %>% range()
 cat(sprintf(
@@ -175,6 +176,7 @@ loc_unique <- data_masked %>%
   distinct(x, y) %>%
   as.matrix()
 bnd <- fm_extensions(loc_unique, convex = c(-.15, -.25))
+# bnd <- fm_extensions(loc_unique, convex = c(-.1, -.15))
 # ggplot() + geom_sf(data = bnd[[1]])
 wf.mesh <- fm_mesh_2d(
   # loc = loc_unique,
@@ -185,8 +187,7 @@ wf.mesh <- fm_mesh_2d(
   cutoff = 5
 )
 
-wf.mesh$n
-
+# wf.mesh$n
 
 ggplot() +
   geom_fm(data = wf.mesh) +
@@ -217,6 +218,7 @@ features_vec <- model_list[model_id, 7] %>%
 # gsub("ar2", "ar1g", .)
 # gsub("ar2", "matern-ar1", .)
 # features_vec <- features_vec[-3]
+save_stack <- ifelse(any(grepl("matern", features_vec)), TRUE, FALSE)
 cat(
   sprintf(
     "Running model type: %s \nFeatures included: %s\n",
@@ -239,6 +241,7 @@ mod_temp <- tryCatch(
     data = data_masked,
     ini.theta = initial_values,
     mesh = wf.mesh,
+    save_stack = save_stack,
     verbose = TRUE
   ),
   error = function(e) {
@@ -312,8 +315,3 @@ cat(sprintf(
   run_time,
   units(run_time)
 ))
-
-
-source("aux_funct_ps.R")
-
-plot.effects.spatial(mod.temp)

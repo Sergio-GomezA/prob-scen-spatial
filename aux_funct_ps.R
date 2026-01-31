@@ -1,5 +1,6 @@
 # author: Sergio
 require(tidyverse)
+require(fields)
 # auxiliary functions
 
 myposixct <- function(timevar, ...) {
@@ -2712,6 +2713,7 @@ fit_inla_model <- function(
     )
 
     if (any(grepl("matern", features_vec))) {
+      browser()
       st.group = data$time_idx
       A1 <- inla.spde.make.A(
         mesh = mesh,
@@ -2825,13 +2827,13 @@ fit_inla_model <- function(
       # , spde = wf.spde
     }
   }
-
+  browser()
   # matern covariance options
   if (any(grepl("matern", features_vec))) {
     control_pred <- c(control_pred, A = inla.stack.A(wf.stack))
     if (save_stack) {
       stack_fname <- sprintf(
-        "misc/stack_r_%s_f_%s_%s_feat_%s.csv",
+        "misc/stack_r_%s_f_%s_%s_feat_%s.rds",
         model_type$response,
         model_type$family,
         model_type$fderiv,
@@ -3475,3 +3477,101 @@ save_model_figures <- function(
 
 # mod.temp$.args$data$wf.spde$n.spde
 # mod.temp$.args$data$st.group %>% head()
+book.color.c = function(n = 201) {
+  return(viridis(n))
+}
+book.plot.field <- function(
+  field,
+  mesh,
+  projector,
+  xlim,
+  ylim,
+  dims = c(300, 300),
+  poly,
+  asp = 1,
+  axes = FALSE,
+  xlab = '',
+  ylab = '',
+  col = book.color.c(),
+  ...
+) {
+  ## you can supply field as a matrix vector or like a named list with 'x', 'y' and 'z' as for image
+  ## when field is a vector, it will project it using projector, assuming projector will create a matrix
+  ## when mesh is supplied and projector not, projector will be created and used to project field
+  if (missing(mesh)) {
+    if (missing(projector)) {
+      if (missing(xlim) | missing(ylim)) {
+        image.plot(
+          field,
+          asp = asp,
+          axes = axes,
+          xlab = xlab,
+          ylab = ylab,
+          col = col,
+          ...
+        )
+      } else {
+        image.plot(
+          field,
+          xlim = xlim,
+          ylim = ylim,
+          asp = asp,
+          axes = axes,
+          xlab = xlab,
+          ylab = ylab,
+          col = col,
+          ...
+        )
+      }
+    } else {
+      if (missing(xlim)) {
+        xlim <- range(projector$x)
+      }
+      if (missing(ylim)) {
+        ylim <- range(projector$y)
+      }
+      field.proj <- inla.mesh.project(projector, field)
+      image.plot(
+        x = projector$x,
+        y = projector$y,
+        z = field.proj,
+        asp = asp,
+        axes = axes,
+        xlab = xlab,
+        ylab = ylab,
+        col = col,
+        xlim = xlim,
+        ylim = ylim,
+        ...
+      )
+    }
+  } else {
+    if (missing(xlim)) {
+      xlim <- range(mesh$loc[, 1])
+    }
+    if (missing(ylim)) {
+      ylim <- range(mesh$loc[, 2])
+    }
+    projector <- inla.mesh.projector(
+      mesh,
+      xlim = xlim,
+      ylim = ylim,
+      dims = dims
+    )
+    field.proj <- inla.mesh.project(projector, field)
+    image.plot(
+      x = projector$x,
+      y = projector$y,
+      z = field.proj,
+      asp = asp,
+      axes = axes,
+      xlab = xlab,
+      ylab = ylab,
+      col = col,
+      ...
+    )
+  }
+  if (!missing(poly)) {
+    plot(poly, add = TRUE, col = 'grey')
+  }
+}

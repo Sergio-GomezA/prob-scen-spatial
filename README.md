@@ -19,8 +19,10 @@ Converting Point Forecasts to probabilistic wind power scenarios for a set of wi
   - [ ] Regime switching
 
 - [ ] Plot effects
-  - [ ] Effects used before
+  - [x] Effects used before
   - [ ] Spatial related effects
+    - [ ] Extract field at locations used in fitted next 24 hours
+    - [ ] Extract field at unseen locations next 24 hours
 
 - [ ] Generate scenarios
   - [ ] Test/ fix code to get samples from spatial models
