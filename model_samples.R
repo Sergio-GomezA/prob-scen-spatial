@@ -7,13 +7,7 @@ mstart_t <- Sys.time()
 
 require(tidyverse)
 require(parallel)
-require(ggsci)
-
-# require(data.table)
-require(arrow)
-require(lubridate)
-require(stringr)
-require(INLA)
+require(sf)
 
 ########## Global variables ###################################################
 
@@ -73,6 +67,16 @@ if (local_run) {
   temp_lib <- "/exports/eddie3_homes_local/s2441782/lib"
   .libPaths(temp_lib)
 }
+
+require(ggsci)
+
+# require(data.table)
+require(arrow)
+require(lubridate)
+require(stringr)
+require(INLA)
+require(fmesher)
+
 input_data <- "data/scottish_wfsamp_24.parquet"
 path.fig <- file.path(large_obj_path, ofolder, "fig")
 path.samples <- file.path(large_obj_path, ofolder, "sample")
@@ -85,6 +89,7 @@ inla.setOption(num.threads = sprintf("%d:1", mc))
 source("fcst_functions.R")
 source("functions_probscen.R")
 source("aux_funct.R")
+source("aux_funct_ps.R")
 
 # training data window length in units
 window_lengths <- c(7, 14, 21, 30, 2)
@@ -171,8 +176,8 @@ train_data <- history_window(
   data.scaled,
   t1,
   window = window,
-  units = wind_units,
-  mask = mask_opt
+  units = units,
+  mask = TRUE
 ) %>%
   mutate(
     site_id = as.integer(factor(site_id))
