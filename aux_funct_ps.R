@@ -1043,29 +1043,18 @@ fit_a_date <- function(
   timeth <- timet + as.difftime(h, units = "hours") # last time to predict
   # browser()
   # prepare data
-  model_data <- dat.power %>%
-    # mutate(actuals.cf = na.approx(actuals.cf)) %>%
-    # simple time index
-    # mutate(t = as.numeric(difftime(time, first(time), units = "hours"))) %>%
-    filter(
-      time >= time0,
-      time <= timeth
-    ) %>%
-    # mutate(
-    #   month= month(time) %>% factor(),
-    #   hour = hour(time) %>% factor()
-    # ) %>%
-    # set target response to NA to be able to forecast it
-    mutate(across(c(actuals.cf, actuals, err.cf, err), \(x) {
-      ifelse(time < timet, x, NA)
-    }))
-  # mutate(actuals.cf = ifelse(time < timet, actuals.cf,NA)) %>%
-  # mutate(err.cf = ifelse(time < timet, err.cf, NA))
+  model_data <- dat.power
 
+  cols_to_clip <- c("actuals", "actuals.cf")
+  min_val <- 1e-6
   # exclude zeroes
   if (tail(inla.object$.args$family, 1) %in% c("weibull", "gamma")) {
     model_data <- model_data %>%
-      filter(is.na(actuals) | actuals > 0)
+      mutate(across(
+        any_of(cols_to_clip),
+        ~ pmax(min_val, .)
+      ))
+    # filter(is.na(actuals) | actuals > 0)
   }
 
   # adjustments in case of etaderiv
