@@ -1181,11 +1181,12 @@ fit_a_date <- function(
         sub("eta", "etaderiv", .)
 
       stack_fname <- sprintf(
-        "misc/stack_r_%s_f_%s_%s_feat_%s.rds",
+        "misc/stack_r_%s_f_%s_%s_feat_%s_t%s.rds",
         response,
         tail(inla.object$.args$family, 1),
         ifelse(any(grepl("eta", reffects_vec)), "etaderiv", "fd"),
-        paste(features_vec, collapse = "-")
+        paste(features_vec, collapse = "-"),
+        format(timet, "%y-%m-%d")
       )
       saveRDS(wf.stack, stack_fname)
     }
