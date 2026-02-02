@@ -70,6 +70,8 @@ if (local_run) {
 } else {
   large_obj_path <- "/exports/eddie/scratch/s2441782/scenarios/spatial"
   mc <- detectCores()
+  temp_lib <- "/exports/eddie3_homes_local/s2441782/lib"
+  .libPaths(temp_lib)
 }
 input_data <- "data/scottish_wfsamp_24.parquet"
 path.fig <- file.path(large_obj_path, ofolder, "fig")
@@ -202,13 +204,13 @@ train_data <- history_window(
   }
 
 time_grid <- seq(
-  from = min(data_masked$time),
-  to = max(data_masked$time),
+  from = min(train_data$time),
+  to = max(train_data$time),
   by = "1 hour"
 )
 
-data_masked$time_idx <- match(data_masked$time, time_grid)
-time_idx_range <- data_masked$time_idx %>% range()
+train_data$time_idx <- match(train_data$time, time_grid)
+time_idx_range <- train_data$time_idx %>% range()
 cat(sprintf(
   "Time reindexed ranging from %d to %d hours after initial time\n",
   time_idx_range[1],
@@ -216,7 +218,7 @@ cat(sprintf(
 ))
 
 cat("Building spatial mesh\n")
-loc_unique <- data_masked %>%
+loc_unique <- train_data %>%
   distinct(x, y) %>%
   as.matrix()
 bnd <- fm_extensions(loc_unique, convex = c(-.15, -.25))
@@ -242,19 +244,14 @@ wf.mesh <- fm_mesh_2d(
 #   ) +
 #   theme_map()
 
-train_data <- history_window(
-  data.scaled,
-  t1,
-  window = window
-)
-
 cat(sprintf(
   "Data loaded and filtered to %d records using options
 Initial date: %s
-Window: %d month(s)\n",
+Window: %d %s\n",
   nrow(train_data),
   format(t1, "%Y-%m-%d"),
-  window
+  window,
+  ifelse(window == 1, sub("s", "", units), units)
 ))
 
 
@@ -286,7 +283,8 @@ mod.code <- sprintf(
 
 # record initial time
 start_time <- Sys.time()
-
+source("aux_funct_ps.R")
+# debug(fit_a_date)
 # re fit model
 new_fit <- fit_a_date(
   timet = t1,
@@ -294,8 +292,10 @@ new_fit <- fit_a_date(
   dat.power = train_data,
   response = response,
   inla.object = mod.temp,
-  restart = restart
-  # verbose = TRUE
+  restart = restart,
+  mesh = wf.mesh,
+  save_stack = FALSE,
+  verbose = TRUE
 )
 summary(new_fit)
 # record initial time

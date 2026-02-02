@@ -1035,6 +1035,8 @@ fit_a_date <- function(
   timezone = "PST",
   inla.object = NULL,
   restart = FALSE,
+  mesh = NULL,
+  save_stack = FALSE,
   ...
 ) {
   # dates of interest
@@ -1057,6 +1059,8 @@ fit_a_date <- function(
     # filter(is.na(actuals) | actuals > 0)
   }
 
+  reffects_vec <- inla.object$summary.random %>% names()
+
   # adjustments in case of etaderiv
   if (length(inla.object$.args$family) > 1) {
     n <- nrow(model_data)
@@ -1072,9 +1076,15 @@ fit_a_date <- function(
         fcst_group = c(fcst_group, rep(NA, n)),
         fd_group = c(fd_group, rep(NA, n)),
         t = c(t, rep(NA, n)),
-        time = c(rep(NA, n), time),
+        time = c(time, rep(NA, n)),
+        time_idx = c(time_idx, time_idx),
         month = c(month, rep(NA, n)),
         hour = c(hour, rep(NA, n)),
+        lon = c(lon, rep(NA, n)),
+        lat = c(lat, rep(NA, n)),
+        x = c(x, x),
+        y = c(y, y),
+        site_id = c(site_id, rep(NA, n)),
         eta = c(1:n, 1:n), # eta indices
         w = c(rep(-1, n), rep(1, n)), # weights for eta effect: -1 to copy lin.predictor, 1 to be part of likelihood
         eta.1 = c(rep(NA, n), 1:n), # indices for positive part of derivative
@@ -1082,11 +1092,65 @@ fit_a_date <- function(
         w2 = c(rep(0, n), rep(-1, n))
       ) # weights for negative part of derivative
     )
+
     # adding properly named response
     day.data[[response]] <- cbind(
       c(rep(0, n), rep(NA, n)), # fake zeros (1st likelihood)
       c(rep(NA, n), model_data[[updated_response]])
     )
+
+    if (any(grepl("spatial", reffects_vec))) {
+      # browser()
+      st.group = day.data$time_idx
+      A1 <- inla.spde.make.A(
+        mesh = mesh,
+        loc = cbind(day.data$x, day.data$y),
+        group = st.group
+      )
+      wf.spde <- inla.spde2.pcmatern(
+        mesh = mesh,
+        alpha = 2,
+        prior.range = c(20, 0.5), # P(range < 50km) = 0.5
+        prior.sigma = c(1, 0.5)
+      )
+      spde_idx <- inla.spde.make.index(
+        name = "spatial",
+        n.spde = wf.spde$n.spde,
+        n.group = length(unique(st.group))
+      )
+
+      effects_names <- c(
+        "intercept",
+        # eta derivative related effects
+        grepv("w$|w2$|eta", names(day.data)),
+        # other effects
+        reffects_vec[
+          grep(
+            "t|spatial|eta",
+            reffects_vec,
+            invert = TRUE
+          )
+        ]
+      )
+      # browser()
+      wf.stack <- inla.stack(
+        data = setNames(
+          list(day.data[[response]]),
+          response
+        ),
+        A = list(A1, 1),
+        effects = list(
+          list(
+            spatial = spde_idx$spatial,
+            st.group = spde_idx$spatial.group
+          ),
+          day.data[effects_names] %>% as.data.frame()
+        ),
+        tag = "wf.data"
+      )
+      # browser()
+      day.data <- inla.stack.data(wf.stack, wf.spde = wf.spde)
+    }
   } else {
     # adjustments in case of ggaussian family
     if (inla.object$.args$family == "ggaussian") {
@@ -1113,6 +1177,84 @@ fit_a_date <- function(
         s = s
       )
     }
+
+    ctrl_family <- list(
+      beta.censor.value = cens,
+      control.link = list(model = "default")
+    )
+    # browser()
+    if (any(grepl("spatial", reffects_vec))) {
+      st.group = model_data$time_idx
+      A1 <- inla.spde.make.A(
+        mesh = mesh,
+        loc = cbind(model_data$x, model_data$y),
+        group = st.group
+      )
+      wf.spde <- inla.spde2.pcmatern(
+        mesh = mesh,
+        alpha = 2,
+        prior.range = c(20, 0.5), # P(range < 50km) = 0.5
+        prior.sigma = c(1, 0.5)
+      )
+      spde_idx <- inla.spde.make.index(
+        name = "spatial",
+        n.spde = wf.spde$n.spde,
+        n.group = length(unique(st.group))
+      )
+
+      wf.stack <- inla.stack(
+        data = setNames(
+          list(model_data[[model_type$response]]),
+          model_type$response
+        ),
+        A = list(A1, 1),
+        effects = list(
+          list(
+            spatial = spde_idx$spatial,
+            st.group = spde_idx$spatial.group
+          ),
+          cbind(
+            intercept = 1,
+            # t = data0$t,
+            model_data[,
+              reffects_vec[-which(grepl("t|spatial|eta", reffects_vec))],
+              drop = FALSE
+            ]
+          )
+        ),
+        tag = "wf.data"
+      )
+
+      # browser()
+      day.data <- inla.stack.data(wf.stack, wf.spde = wf.spde)
+    }
+  }
+  control_pred <- list(
+    compute = inla.object$.args$control.predictor$compute,
+    link = 1
+  )
+  if (any(grepl("spatial", reffects_vec))) {
+    control_pred <- c(control_pred, A = inla.stack.A(wf.stack))
+    if (save_stack) {
+      spatial_model <- ifelse(
+        grepl("ar1", as.character(inla.object$.args$formula)[3]),
+        "matern-ar1",
+        "matern"
+      )
+
+      features_vec <- grepv("eta.1|eta.2", reffects_vec, invert = TRUE) %>%
+        sub("spatial", spatial_model, .) %>%
+        sub("eta", "etaderiv", .)
+
+      stack_fname <- sprintf(
+        "misc/stack_r_%s_f_%s_%s_feat_%s.rds",
+        response,
+        tail(inla.object$.args$family, 1),
+        ifelse(any(grepl("eta", reffects_vec)), "etaderiv", "fd"),
+        paste(features_vec, collapse = "-")
+      )
+      saveRDS(wf.stack, stack_fname)
+    }
   }
   # browser()
   # prepare model run
@@ -1123,10 +1265,7 @@ fit_a_date <- function(
     control.mode = list(theta = inla.object$mode$theta, restart = restart), # do not restart opt
     control.family = inla.object$.args$control.family,
     control.compute = inla.object$.args$control.compute,
-    control.predictor = list(
-      compute = inla.object$.args$control.predictor$compute,
-      link = 1
-    ),
+    control.predictor = control_pred,
     # verbose = TRUE,
     ...
   )
@@ -2816,7 +2955,7 @@ fit_inla_model <- function(
       # , spde = wf.spde
     }
   }
-  browser()
+  # browser()
   # matern covariance options
   if (any(grepl("matern", features_vec))) {
     control_pred <- c(control_pred, A = inla.stack.A(wf.stack))
