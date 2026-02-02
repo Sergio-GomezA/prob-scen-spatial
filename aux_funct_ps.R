@@ -671,18 +671,28 @@ simulation.plots.inla2 <- function(
         .
       }
     }
-  if (grepl("Y_", response) & !is.na(inla.model$.args$data$time[1])) {
-    pos_shift <- length(inla.model$.args$data$time) / 2
+  reffects_vec <- inla.model$summary.random %>% names()
+  if (any(grepl("spatial", reffects_vec))) {
+    t_index_range <- inla.model$.args$data$st.group %>% range(., na.rm = T)
+    forecast_t_index <- t_index_range[2] - h:0
+    fcst_points <- which(inla.model$.args$data$st.group %in% forecast_t_index)
+
+    ival <- inla.stack.index(stfull, 'stval')$data
   } else {
-    pos_shift <- 0
+    if (grepl("Y_", response) & !is.null(inla.model$.args$data$eta[1])) {
+      pos_shift <- length(inla.model$.args$data$eta) / 2
+    } else {
+      pos_shift <- 0
+    }
+    # find points to forecast
+    fcst_dates <- seq(
+      from = t1 + 0 * 60 * 60,
+      to = t1 + h * 60 * 60,
+      by = "hour"
+    )
+    fcst_points <- which(inla.model$.args$data$time %in% fcst_dates) + pos_shift
   }
-  # find points to forecast
-  fcst_dates <- seq(
-    from = t1 + 0 * 60 * 60,
-    to = t1 + h * 60 * 60,
-    by = "hour"
-  )
-  fcst_points <- which(inla.model$.args$data$time %in% fcst_dates) + pos_shift
+
   # h <- length(fcst_points)
 
   # Calculate post.pred.samples if sample.df is not provided
@@ -951,82 +961,6 @@ get_inla_formula <- function(inla_model) {
   )
 }
 
-# model posterior estimation for a given date
-# fit_a_date <- function(
-#     timet = "2013-06-20 00:01:00 PST",
-#     h = 24,
-#     dat.power, # should have time, actuals.cf, ws, month, hour,
-#     response,
-#     timezone = "PST",
-#     inla.object = NULL,
-#     restart = FALSE,
-#     ...){
-#
-#   # dates of interest
-#   time0 <- min(dat.power$time) #, initial time,
-#   timet <- as.POSIXct(timet, tz=timezone) # last time included in training
-#   timeth <- timet + as.difftime(h, units = "hours") # last time to predict
-#
-#   # prepare data
-#   model_data <- dat.power %>%
-#     # mutate(actuals.cf = na.approx(actuals.cf)) %>%
-#     # simple time index
-#     # mutate(t = as.numeric(difftime(time, first(time), units = "hours"))) %>%
-#     filter(
-#       time >= time0,
-#       time <=timeth) %>%
-#     # mutate(
-#     #   month= month(time) %>% factor(),
-#     #   hour = hour(time) %>% factor()
-#     # ) %>%
-#     # set target response to NA to be able to forecast it
-#     mutate(across(c(actuals.cf,actuals,err.cf), \(x) ifelse(time < timet, x , NA)))
-#     # mutate(actuals.cf = ifelse(time < timet, actuals.cf,NA)) %>%
-#     # mutate(err.cf = ifelse(time < timet, err.cf, NA))
-#
-#   # adjustments in case of ggaussian family
-#   if(inla.object$.args$family == "ggaussian"){
-#     s = rep(1,nrow(model_data))
-#     interc = rep(1,nrow(model_data))
-#     Y = with(
-#       model_data,
-#       inla.mdata(err.cf, s, interc, forecast.cf, forecast.cf^2))
-#   }
-#
-#   # data
-#   if (inla.object$.args$family != "ggaussian") {
-#     day.data <- model_data
-#   } else {
-#     day.data <- list(
-#       Y = Y,
-#       ws.w_group = model_data$ws.w_group,
-#       t = model_data$t,
-#       month = model_data$month,
-#       hour = model_data$hour,
-#       intercept = interc,
-#       forecast.cf = model_data$forecast.cf,
-#       time = model_data$time,
-#       s = s
-#     )
-#   }
-#
-#
-#   # prepare model run
-#   new_inla_model <- inla(
-#     formula = get_inla_formula(inla.object), # model formula
-#     data = day.data,
-#     family = inla.object$.args$family,
-#     control.mode = list(theta = inla.object$mode$theta, ...), # do not restart opt
-#     control.family = inla.object$.args$control.family,
-#     control.compute = inla.object$.args$control.compute,
-#     control.predictor = list(compute = inla.object$.args$control.predictor$compute,
-#                              link = 1),
-#     # verbose = TRUE,
-#     ...
-#   )
-#   # return INLA object
-#   new_inla_model
-# }
 fit_a_date <- function(
   timet = "2013-06-20 00:01:00 PST",
   h = 24,

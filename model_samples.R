@@ -288,7 +288,7 @@ mod.code <- sprintf(
 
 # record initial time
 start_time <- Sys.time()
-source("aux_funct_ps.R")
+# source("aux_funct_ps.R")
 # debug(fit_a_date)
 # re fit model
 new_fit <- fit_a_date(
@@ -299,7 +299,7 @@ new_fit <- fit_a_date(
   inla.object = mod.temp,
   restart = restart,
   mesh = wf.mesh,
-  save_stack = FALSE,
+  save_stack = TRUE,
   verbose = TRUE
 )
 summary(new_fit)
@@ -327,6 +327,8 @@ if (!dir.exists(path.fig)) {
 }
 # undebug(simulation.plots.inla2)
 # save samples plot and get posterior samples
+source("aux_funct_ps.R")
+debug(simulation.plots.inla2)
 sim.obj <- simulation.plots.inla2(
   inla.model = new_fit,
   data = data.scaled,
