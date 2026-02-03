@@ -442,6 +442,8 @@ plot_actuals_model <- function(
   show.fig = TRUE,
   legend.opt = "forecast", #
   clipping = FALSE,
+  spatial = FALSE,
+  fcst_points = NULL,
   ...
 ) {
   # recover data if response is inla.mdata
@@ -483,16 +485,28 @@ plot_actuals_model <- function(
       t()
     colnames(extra.cols) <- paste0(plot.type, quSeq)
   }
+  # browser()
+  cols_orig_data <- c("time", "site_name")
+  data_site_time <- train_data %>%
+    select(any_of(cols_orig_data)) %>%
+    slice(fcst_points - nrow(train_data))
+  if (spatial) {
+    cols_to_join <- c("time", "site_name")
+  } else {
+    cols_to_join <- "time"
+  }
   plot.data <- data %>%
     filter(
-      time < t1 + h * 60 * 60,
-      time >= t1
+      time <= t1 + h * 60 * 60,
+      time > t1
     ) %>%
+    mutate(forecast.cf_orig = forecast.cf) %>%
     left_join(
       extra.cols %>%
         as.data.frame() %>%
-        mutate(time = seq(t1, t1 + (nrow(extra.cols) - 1) * 3600, by = "hour")),
-      by = "time"
+        # mutate(time = seq(t1, t1 + (nrow(extra.cols) - 1) * 3600, by = "hour"))
+        bind_cols(data_site_time),
+      by = cols_to_join
     ) %>%
     {
       if (response %in% c("err.cf", "Y_err.cf")) {
@@ -575,7 +589,7 @@ plot_actuals_model <- function(
         } else {
           .
         }
-      } # remove normalised
+      } # remove normalised power
   ) %>%
     {
       if (clipping) mutate(., value = pmin(1, pmax(0, value))) else .
@@ -626,6 +640,9 @@ plot_actuals_model <- function(
     } +
     labs(x = "") +
     scale_x_datetime(date_labels = "%H:%M") +
+    {
+      if (spatial) facet_wrap(~site_name) else NULL
+    } +
     theme(
       legend.position = "none",
       # legend.position = "bottom",
@@ -672,12 +689,37 @@ simulation.plots.inla2 <- function(
       }
     }
   reffects_vec <- inla.model$summary.random %>% names()
-  if (any(grepl("spatial", reffects_vec))) {
-    t_index_range <- inla.model$.args$data$st.group %>% range(., na.rm = T)
-    forecast_t_index <- t_index_range[2] - h:0
-    fcst_points <- which(inla.model$.args$data$st.group %in% forecast_t_index)
+  spatial <- any(grepl("spatial", reffects_vec))
+  if (spatial) {
+    # t_index_range <- inla.model$.args$data$st.group %>% range(., na.rm = T)
+    # forecast_t_index <- t_index_range[2] - h:0
+    # fcst_points <- which(inla.model$.args$data$st.group %in% forecast_t_index)
 
-    ival <- inla.stack.index(stfull, 'stval')$data
+    stack_fname <- sprintf(
+      "misc/stack_%s_t%s.rds",
+      mod.file.name %>% sub("\\.rds$", "", .),
+      format(t1, "%y-%m-%d")
+    )
+    wf.stack <- readRDS(stack_fname)
+    idat <- inla.stack.index(wf.stack, 'wf.data')$data # raw data index
+
+    n <- length(idat) / 2
+    n <- ifelse(
+      any(
+        grepl("eta", reffects_vec)
+      ),
+      dim(inla.model$.args$data[[response]])[1],
+      length(inla.model$.args$data[[response]])
+    ) /
+      2
+    # excluding fakezeros
+    idat_resp <- idat[n + 1:n]
+
+    # next day indices
+    resp_Y <- inla.model$.args$data$Y_err.cf[idat_resp, 2]
+    fcst_points <- which(is.na(resp_Y)) + n
+
+    #
   } else {
     if (grepl("Y_", response) & !is.null(inla.model$.args$data$eta[1])) {
       pos_shift <- length(inla.model$.args$data$eta) / 2
@@ -714,31 +756,31 @@ simulation.plots.inla2 <- function(
     hypers <- inla.model$summary.hyperpar %>% rownames()
 
     # number of ar terms
-    ar.order <- max(1, sum(str_detect(hypers, "^PACF[0-9]+ for t$")))
+    # ar.order <- max(1, sum(str_detect(hypers, "^PACF[0-9]+ for t$")))
 
     # find out which ar model was used
-    ar.type <- case_when(
-      any(grepl("Rho for t", hypers)) ~ "AR1",
-      any(grepl("PACF1 for t", hypers)) ~ paste0("AR", ar.order),
-      TRUE ~ "none"
-    )
+    # ar.type <- case_when(
+    #   any(grepl("Rho for t", hypers)) ~ "AR1",
+    #   any(grepl("PACF1 for t", hypers)) ~ paste0("AR", ar.order),
+    #   TRUE ~ "none"
+    # )
     # browser()
 
-    if (ar.type == "AR1") {
-      # get ar par samples
-      sigma_ar <- precision.samples[, "Precision for t"]
-      rho <- precision.samples[, "Rho for t"]
-    } else {
-      if (ar.type != "none") {
-        # get ar par samples
-        sigma_ar <- precision.samples[, "Precision for t"]
-        position <- which(grepl(
-          pattern = "^PACF[0-9]+ for t$",
-          colnames(precision.samples)
-        ))
-        pacf_vec <- precision.samples[, position]
-      }
-    }
+    # if (ar.type == "AR1") {
+    #   # get ar par samples
+    #   sigma_ar <- precision.samples[, "Precision for t"]
+    #   rho <- precision.samples[, "Rho for t"]
+    # } else {
+    #   if (ar.type != "none") {
+    #     # get ar par samples
+    #     sigma_ar <- precision.samples[, "Precision for t"]
+    #     position <- which(grepl(
+    #       pattern = "^PACF[0-9]+ for t$",
+    #       colnames(precision.samples)
+    #     ))
+    #     pacf_vec <- precision.samples[, position]
+    #   }
+    # }
 
     if (response == "Y") {
       # for generalised Gaussian
@@ -878,6 +920,8 @@ simulation.plots.inla2 <- function(
       # n.sim.plot = n.sim.plot[1],
       show.fig = FALSE,
       legend.opt = legend.opt,
+      spatial = spatial,
+      fcst_points = fcst_points,
       ...
     )
 
@@ -892,6 +936,8 @@ simulation.plots.inla2 <- function(
       n.sim.plot = n.sim.plot[1],
       show.fig = FALSE,
       legend.opt = legend.opt,
+      spatial = spatial,
+      fcst_points = fcst_points,
       ...
     )
     p.sim.large <- plot_actuals_model(
@@ -905,6 +951,8 @@ simulation.plots.inla2 <- function(
       n.sim.plot = n.sim.plot[2],
       show.fig = FALSE,
       legend.opt = legend.opt,
+      spatial = spatial,
+      fcst_points = fcst_points,
       ...
     )
 
@@ -914,6 +962,13 @@ simulation.plots.inla2 <- function(
       print(p.sim.large$plot)
     }
     if (save.fig) {
+      if (spatial) {
+        pwidth = 10
+        pheight = 7
+      } else {
+        pwidth = 3.5
+        pheight = 3
+      }
       # Create the directory if it doesn't exist
       if (!dir.exists(path)) {
         dir.create(path, recursive = TRUE)
@@ -921,20 +976,20 @@ simulation.plots.inla2 <- function(
       ggsave(
         file.path(path, paste0(run.name, "_quantiles.eps")),
         plot.q$plot,
-        width = 3.5,
-        height = 3
+        width = pwidth,
+        height = pheight
       )
       ggsave(
         file.path(path, paste0(run.name, "_sim.small.eps")),
         p.sim.small$plot,
-        width = 3.5,
-        height = 3
+        width = pwidth,
+        height = pheight
       )
       ggsave(
         file.path(path, paste0(run.name, "_sim.large.eps")),
         p.sim.large$plot,
-        width = 3.5,
-        height = 3
+        width = pwidth,
+        height = pheight
       )
     }
   } else {
@@ -1182,9 +1237,9 @@ fit_a_date <- function(
 
       stack_fname <- sprintf(
         "misc/stack_r_%s_f_%s_%s_feat_%s_t%s.rds",
-        response,
+        updated_response,
         tail(inla.object$.args$family, 1),
-        ifelse(any(grepl("eta", reffects_vec)), "etaderiv", "fd"),
+        ifelse(any(grepl("eta", reffects_vec)), "eta", "fd"),
         paste(features_vec, collapse = "-"),
         format(timet, "%y-%m-%d")
       )

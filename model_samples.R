@@ -96,7 +96,7 @@ window_lengths <- c(7, 14, 21, 30, 2)
 window_units <- c(rep("days", 4), "months")
 
 # first day to forecast
-t0 <- as.POSIXct("2024-07-01", tz = "PST")
+t0 <- as.POSIXct("2024-07-01", tz = "UTC")
 
 # days to run
 time_seq <- seq(
@@ -328,7 +328,7 @@ if (!dir.exists(path.fig)) {
 # undebug(simulation.plots.inla2)
 # save samples plot and get posterior samples
 source("aux_funct_ps.R")
-debug(simulation.plots.inla2)
+# debug(simulation.plots.inla2)
 sim.obj <- simulation.plots.inla2(
   inla.model = new_fit,
   data = data.scaled,
@@ -343,7 +343,8 @@ sim.obj <- simulation.plots.inla2(
   save.fig = save.fig,
   path = path.fig,
   run.name = paste0(mod.code, t1),
-  skip.plots = FALSE
+  skip.plots = FALSE,
+  inla_seed = 0
   # sample.df = sample.test$samples,
   # legend.position = "bottom"
 )
