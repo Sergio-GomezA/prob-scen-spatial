@@ -851,6 +851,7 @@ simulation.plots.inla2 <- function(
       # n.sim.plot = n.sim.plot[1],
       show.fig = FALSE,
       legend.opt = legend.opt,
+      clipping = TRUE,
       spatial = spatial,
       fcst_points = fcst_points,
       ...
@@ -867,6 +868,7 @@ simulation.plots.inla2 <- function(
       n.sim.plot = n.sim.plot[1],
       show.fig = FALSE,
       legend.opt = legend.opt,
+      clipping = TRUE,
       spatial = spatial,
       fcst_points = fcst_points,
       ...
@@ -882,6 +884,7 @@ simulation.plots.inla2 <- function(
       n.sim.plot = n.sim.plot[2],
       show.fig = FALSE,
       legend.opt = legend.opt,
+      clipping = TRUE,
       spatial = spatial,
       fcst_points = fcst_points,
       ...
