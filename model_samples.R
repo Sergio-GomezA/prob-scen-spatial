@@ -343,6 +343,7 @@ sim.obj <- simulation.plots.inla2(
   nsamp = n.samples,
   show.fig = show.fig,
   save.fig = save.fig,
+  fig.ext = ".png",
   path = path.fig,
   run.name = paste0(mod.code, t1),
   skip.plots = FALSE,

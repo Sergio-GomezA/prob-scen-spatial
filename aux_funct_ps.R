@@ -610,6 +610,7 @@ simulation.plots.inla2 <- function(
   resp.lab = "Wind Generation",
   show.fig = TRUE,
   save.fig = FALSE,
+  fig.ext = ".eps",
   path = NULL,
   run.name = "default",
   skip.plots = FALSE,
@@ -908,19 +909,19 @@ simulation.plots.inla2 <- function(
         dir.create(path, recursive = TRUE)
       }
       ggsave(
-        file.path(path, paste0(run.name, "_quantiles.eps")),
+        file.path(path, paste0(run.name, "_quantiles", fig.ext)),
         plot.q$plot,
         width = pwidth,
         height = pheight
       )
       ggsave(
-        file.path(path, paste0(run.name, "_sim.small.eps")),
+        file.path(path, paste0(run.name, "_sim.small", fig.ext)),
         p.sim.small$plot,
         width = pwidth,
         height = pheight
       )
       ggsave(
-        file.path(path, paste0(run.name, "_sim.large.eps")),
+        file.path(path, paste0(run.name, "_sim.large", fig.ext)),
         p.sim.large$plot,
         width = pwidth,
         height = pheight
