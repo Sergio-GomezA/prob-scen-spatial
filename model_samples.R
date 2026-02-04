@@ -261,6 +261,7 @@ Window: %d %s\n",
 
 
 ########## Model fit ##########################################################
+cat(sprintf('Reading model file\n'))
 mod.path <- file.path(mod_obj_path, mod.file.name)
 mod.temp <- readRDS(mod.path)
 mod_stats <- get_mod_stats(mod.file.name, path = mod_obj_path, mod.temp)
@@ -285,7 +286,7 @@ mod.code <- sprintf(
 # gsub("#\\.", "-", .)
 
 # Refit model with filtered data
-
+cat("Refitting model for new day-ahead prediction")
 # record initial time
 start_time <- Sys.time()
 # source("aux_funct_ps.R")
@@ -310,6 +311,7 @@ cat(sprintf("Refit step finished in: %.2f %s\n", run_time, units(run_time)))
 
 
 ########## Extract samples ####################################################
+cat('Extracting posterios samples from model\n')
 # record initial time
 start_time <- Sys.time()
 # labels according to model response
@@ -327,7 +329,7 @@ if (!dir.exists(path.fig)) {
 }
 # undebug(simulation.plots.inla2)
 # save samples plot and get posterior samples
-source("aux_funct_ps.R")
+
 # debug(simulation.plots.inla2)
 sim.obj <- simulation.plots.inla2(
   inla.model = new_fit,
@@ -358,7 +360,7 @@ cat(sprintf(
 ))
 
 ########## Save output and wrap-up ############################################
-
+cat('Saving sample data\n')
 # record initial time
 start_time <- Sys.time()
 # write samples in a csv
@@ -366,7 +368,6 @@ start_time <- Sys.time()
 cols_loc_time <- sim.obj$quantiles %>%
   filter(time > t1) %>%
   select(lon, lat, time, site_name, actuals.cf, forecast.cf, matches("quant"))
-
 
 sim.obj$samples %>%
   t() %>%
