@@ -364,70 +364,6 @@ simulation.plots.inla <- function(
 }
 
 
-# plot_actuals_model <- function(
-#     data,
-#     samples,
-#     response = "actuals.cf",
-#     t1, # initial time
-#     h = 24,
-#     resp.lab, # response of the model
-#     plot.type = "sim", # simulations or quantiles
-#     quSeq = c(0.025,0.5,0.975), # quantiles
-#     n.sim.plot = 10, # simulations
-#     show.fig = TRUE,
-#     legend.opt = "forecast", #
-#     ...
-# ){
-#
-#   if (plot.type == "sim"){
-#     # filter only a few samples
-#     extra.cols <- samples[sample(1:nrow(samples), n.sim.plot), ] %>% t()
-#     colnames(extra.cols) <- paste0(plot.type, 1:n.sim.plot)  #add names
-#   }
-#   if (plot.type == "quant"){
-#     # Quantiles
-#     extra.cols <- apply(samples, 2, quantile, probs = quSeq, na.rm = TRUE) %>% t()
-#     colnames(extra.cols) <- paste0(plot.type, quSeq)
-#
-#   }
-#   plot.data <- data %>%
-#     filter(
-#       time < t1 + h *60*60,
-#       time >= t1) %>%
-#     left_join(
-#       extra.cols %>% as.data.frame() %>% mutate(time = seq(t1, t1+(nrow(extra.cols)-1)*3600, by ="hour")),
-#       by = "time"
-#     )
-#     # cbind(extra.cols[(h-23):h,])
-#
-#   model_w_actuals <- model_w_actuals <- (
-#     plot.data %>%
-#       pivot_longer(cols = c(all_of(response), "forecast.cf", matches(plot.type))) %>%
-#       mutate(name = factor(name, levels = rev(c(response, "forecast.cf", colnames(extra.cols))))) %>%
-#       {if (response != "actuals.cf") filter(., name != "forecast.cf") else .}
-#   ) %>%
-#     ggplot(aes(time, value, col = name)) +
-#     geom_line() +
-#     coord_cartesian(...) +
-#     theme_bw() + xlab("date") + ylab(paste0(resp.lab," % of Capacity")) + labs(col = "") +
-#     {if (legend.opt=="forecast") {scale_color_manual(
-#       values = c("darkred", "darkblue", rep("gray", ncol(extra.cols))),
-#         # values = rev(c("darkred", "darkblue", rep("gray", ncol(extra.cols)))),
-#         breaks = c("actuals.cf", "forecast.cf") # Exclude names that match plot.type
-#       )} else scale_color_manual(
-#         values = (c("darkred", rep("gray", ncol(extra.cols)))),
-#         breaks = c("err.cf")
-#         )}+
-#     theme(
-#       # legend.position = "bottom",
-#       legend.position = "inside",
-#       legend.position.inside = c(.3,.2)
-#       )
-#
-#   if(show.fig) print(model_w_actuals)
-#   invisible(list(data = plot.data, plot = model_w_actuals))
-# }
-
 plot_actuals_model <- function(
   data,
   samples,
@@ -486,15 +422,17 @@ plot_actuals_model <- function(
     colnames(extra.cols) <- paste0(plot.type, quSeq)
   }
   # browser()
-  cols_orig_data <- c("time", "site_name")
-  data_site_time <- train_data %>%
-    select(any_of(cols_orig_data)) %>%
-    slice(fcst_points - nrow(train_data))
+
   if (spatial) {
     cols_to_join <- c("time", "site_name")
   } else {
     cols_to_join <- "time"
   }
+
+  data_site_time <- train_data %>%
+    select(any_of(cols_to_join)) %>%
+    slice(fcst_points - nrow(train_data))
+
   plot.data <- data %>%
     filter(
       time <= t1 + h * 60 * 60,
@@ -665,7 +603,7 @@ simulation.plots.inla2 <- function(
   t1 = "2013-06-20 00:00:00 PST",
   h = 24,
   quSeq = c(0.025, 0.5, 0.975),
-  n.sim.plot = c(3, 100),
+  n.sim.plot = c(5, 30),
   sample.df = NULL,
   nsamp = 10000,
   family = "beta",
@@ -821,13 +759,6 @@ simulation.plots.inla2 <- function(
         }
       ) %>%
         t()
-      # parametric_quants <- sapply(
-      #   quSeq,
-      #   \(prob) qbeta(p = prob,
-      #                 shape1 = shape1.samp,
-      #                 shape2 = shape2.samp)
-      # )
-      # colnames(parametric_quants) <- paste0("quant",probs)
     } else {
       # case gaussian, no transformation
       linpredictor.samples <- sapply(

@@ -362,17 +362,25 @@ cat(sprintf(
 # record initial time
 start_time <- Sys.time()
 # write samples in a csv
+
+cols_loc_time <- sim.obj$quantiles %>%
+  filter(time > t1) %>%
+  select(lon, lat, time, site_name, actuals.cf, forecast.cf, matches("quant"))
+
+
 sim.obj$samples %>%
+  t() %>%
   as.data.frame() %>%
-  setNames(paste0(
-    "t_",
-    seq(t1, t1 + 23 * 3600, by = "hour") %>%
-      format(., "%Y-%m-%d_%H")
-  )) %>%
-  write.csv(
+  setNames(paste0("sim", 1:ncol(.))) %>%
+  bind_cols(cols_loc_time) %>%
+  # setNames(paste0(
+  #   "t_",
+  #   seq(t1, t1 + 23 * 3600, by = "hour") %>%
+  #     format(., "%Y-%m-%d_%H")
+  # )) %>%
+  write_parquet(
     .,
-    file = gzfile(file.path(path.samples, paste0(mod.code, t1, ".csv.gz"))),
-    row.names = FALSE
+    file.path(path.samples, paste0(mod.code, t1, ".parquet"))
   )
 
 end_time <- Sys.time()
@@ -383,7 +391,6 @@ cat(sprintf(
   run_time,
   units(run_time)
 ))
-
 
 mend_t <- Sys.time()
 run_time <- difftime(mend_t, mstart_t)
