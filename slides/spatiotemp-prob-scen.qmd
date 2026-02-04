@@ -37,6 +37,8 @@ require(sf)
 library(rnaturalearth)
 library(rnaturalearthdata)
 
+require(inlabru)
+
 require(ggthemes)
 require(arrow)
 pre_path <- ifelse(grepl("prob-scen-spatial$",getwd()),getwd(),"..")
@@ -93,16 +95,16 @@ New models are modifications of the Normalised Error with Normal distribution (N
 - UK data:
   - Length: 1 to 3 months
   - Resolution: hourly
-  - Locations 10 Scottish wind farms
+  - Locations 35 Scottish wind farms
 
 Trying to keep $\text{fit time} < 60\text{min}$
 :::
 
 ::: {.column width="50%"}
 \centering
-\small 10 Scottish wind farms
+\small Sample of Scottish wind farms
 
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/Scottish_wfsamp_24_map.pdf}
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/Scottish_35wfsamp_24_map.pdf}
 :::
 
 :::
@@ -207,6 +209,47 @@ knitr::include_graphics(hyper_plots)
 :::
 
 :::
+
+
+## Posterior distributions
+::: {.columns}
+
+::: {.column width="50%"}
+\centering
+\small Covariance plot
+```{r fig.height = 3, fig.show="hold" ,results="asis"}
+p_pattern <- sprintf("^pco.*_mod_%s.pdf$", prefix)
+p_plots <- list.files(path = "../fig", pattern = p_pattern,full.names = TRUE)
+
+knitr::include_graphics(p_plots[1])
+
+```
+:::
+
+::: {.column width="50%"}
+
+\centering
+\small Correlation plot
+```{r fig.height = 3}
+
+knitr::include_graphics(p_plots[2])
+```
+:::
+
+:::
+## Scenarios
+\centering
+\small Probabilistic scenarios
+```{r results="asis",  out.height="80%"}
+fig_path <- "~/Documents/proj2/spatial/ST-PR-NEN/fig"
+
+t_plot <- "2024-07-01"
+scen_fig <- file.path(
+  fig_path,
+  sub("\\.rds$",paste0("_t",t_plot,"_sim.small.png"), model_fname)
+)
+knitr::include_graphics(scen_fig)
+```
 
 ## PR-NEN model
 

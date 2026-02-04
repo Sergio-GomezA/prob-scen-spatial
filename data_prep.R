@@ -122,7 +122,7 @@ scots_summary %>%
   geom_sf(aes(geometry = geometry)) +
   theme_map()
 ggsave(
-  "fig/scottish_wfsamp_24_map.pdf",
+  "fig/scottish_35wfsamp_24_map.pdf",
   width = 3.5,
   height = 5
 )

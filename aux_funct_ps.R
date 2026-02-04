@@ -3453,6 +3453,7 @@ save_model_figures <- function(
   mod_fname,
   path = "~/Documents/proj2/spatial/model_objects/"
 ) {
+  # browser()
   mod.temp <- readRDS(
     file.path(
       path,
@@ -3524,6 +3525,140 @@ save_model_figures <- function(
     width = 6,
     height = 4
   )
+
+  dfcov <- myspde.posterior(mod.temp, "spatial", "matern.covariance")
+  # pcov %>% names()
+  pcov <- dfcov %>%
+    ggplot() +
+    geom_ribbon(
+      aes(x, ymin = `q0.025%`, ymax = `q0.975%`),
+      alpha = 0.5
+    ) +
+    gg(dfcov)
+  ggsave(
+    sprintf("fig/pcov_mod_%s.pdf", prefix),
+    pcov,
+    width = 6,
+    height = 4
+  )
+
+  dfcor <- myspde.posterior(mod.temp, "spatial", "matern.correlation")
+  pcor <- dfcor %>%
+    ggplot() +
+    geom_ribbon(
+      aes(x, ymin = `q0.025%`, ymax = `q0.975%`),
+      alpha = 0.5
+    ) +
+    gg(dfcor)
+  ggsave(
+    sprintf("fig/pcor_mod_%s.pdf", prefix),
+    pcor,
+    width = 6,
+    height = 4
+  )
+}
+
+
+myspde.posterior <- function(result, name, what = "range", quantile = 0.95) {
+  # stopifnot(bru_safe_inla(multicore = TRUE))
+  spdespec <- result$.args$data$wf.spde
+  spderesult <- INLA::inla.spde.result(result, name, spdespec)
+  if (what == "matern.correlation" || what == "matern.covariance") {
+    xmax <- exp(spderesult$summary.log.range.nominal[["0.975quant"]]) *
+      1.2
+    x <- seq(0, xmax, length.out = 200)
+    log.range <- list(
+      mean = spderesult$summary.log.range.nominal[["mean"]],
+      sd = spderesult$summary.log.range.nominal[["sd"]]
+    )
+    log.variance <- list(
+      mean = spderesult$summary.log.variance.nominal[["mean"]],
+      sd = spderesult$summary.log.variance.nominal[["sd"]]
+    )
+    if (what == "matern.correlation") {
+      corr <- TRUE
+      ylab <- "Matern Correlation"
+      out <- materncov.bands(
+        result$.args$data$wf.spde$mesh,
+        dist = x,
+        log.range = log.range,
+        log.variance = NULL,
+        alpha = 2,
+        quantile = quantile
+      )
+    } else {
+      corr <- FALSE
+      ylab <- "Matern Covariance"
+      out <- materncov.bands(
+        result$.args$data$wf.spde$mesh,
+        dist = x,
+        log.range = log.range,
+        log.variance = log.variance,
+        alpha = 2,
+        quantile = quantile
+      )
+    }
+    df <- data.frame(
+      x = x,
+      q0.5 = out$median,
+      lower = out$lower,
+      upper = out$upper,
+      median = out$median
+    )
+    colnames(df)[3] <- paste0("q", paste0(round((1 - quantile) / 2, 5), "%"))
+    colnames(df)[4] <- paste0(
+      "q",
+      paste0(
+        round(
+          1 -
+            (1 -
+              quantile) /
+              2,
+          5
+        ),
+        "%"
+      )
+    )
+    attr(df, "type") <- "1d"
+    attr(df, "misc") <- list(dims = "x", predictor = c("distance", ylab))
+    class(df) <- list("prediction", "data.frame")
+    df
+  } else {
+    marg <- switch(
+      what,
+      range = spderesult$marginals.range.nominal[[1]],
+      log.range = spderesult$marginals.log.range.nominal[[1]],
+      variance = spderesult$marginals.variance.nominal[[1]],
+      log.variance = spderesult$marginals.log.variance.nominal[[1]]
+    )
+    if (is.null(marg)) {
+      stop(
+        "Invalid varname: ",
+        what,
+        ". must be one of 'range',\n                           'log.range',  'variance',  'log.variance',\n                           'matern.correlation', matern.covariance"
+      )
+    }
+    med <- INLA::inla.qmarginal(0.5, marg)
+    uq <- INLA::inla.qmarginal(1 - (1 - quantile) / 2, marg)
+    lq <- INLA::inla.qmarginal((1 - quantile) / 2, marg)
+    inner.x <- seq(lq, uq, length.out = 100)
+    inner.marg <- data.frame(
+      x = inner.x,
+      y = INLA::inla.dmarginal(inner.x, marg)
+    )
+    colnames(inner.marg) <- c(what, "pdf")
+    df <- data.frame(marg)
+    colnames(df) <- c(what, "pdf")
+    attr(df, "type") <- "0d"
+    attr(df, "summary") <- list(
+      uq = uq,
+      lq = lq,
+      median = med,
+      inner.marg = inner.marg
+    )
+    class(df) <- list("prediction", "data.frame")
+    df
+  }
 }
 
 # mod.temp$summary.random$spatial$mean

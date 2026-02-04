@@ -9,7 +9,7 @@ mod.temp <- readRDS(file.path(model_path, model_fname))
 
 stack_fname <- paste0("misc/stack_", model_fname)
 stack <- readRDS(stack_fname)
-inla.stack.index(stack, "wf.stack")$data %>% head()
+# inla.stack.index(stack, "wf.stack")$data %>% head()
 # plot.effects.spatial(mod.temp)
 
 stack %>% attributes()
@@ -38,9 +38,34 @@ substr(row.names(mod.temp$summary.fitted.values), 1, 5) %>% unique()
 
 
 ## ----rfidx---------------------------------------------------------------
+t1 <- "2024-06-30 23:00:00" %>% as.POSIXct(tz = "UTC")
+input_data <- "data/scottish_wfsamp_24.parquet"
+data.scaled <- read_parquet(input_data)
 
+data_masked <- history_window(
+  data.scaled,
+  t1,
+  window = 7,
+  units = "days",
+  mask = TRUE
+) %>%
+  mutate(
+    site_id = as.integer(factor(site_id))
+  ) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  mutate(
+    lon = st_coordinates(.)[, 1],
+    lat = st_coordinates(.)[, 2]
+  ) %>%
+  st_transform(crs = 27700) %>%
+  mutate(
+    x = st_coordinates(.)[, 1] / 1000,
+    y = st_coordinates(.)[, 2] / 1000
+  ) %>%
+  st_drop_geometry()
 # full set of indices
-idat <- inla.stack.index(stack, 'wf.data')$data
+# idat <- inla.stack.index(stack, 'wf.data')$data
+idat <- stack$data$index$wf.data
 n <- length(idat) / 2
 # excluding fakezeros
 idat_resp <- idat[n + 1:n]
