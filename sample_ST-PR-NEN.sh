@@ -2,12 +2,12 @@
 #!/bin/bash
 #$ -N STPRNEN
 #$ -wd /exports/eddie/scratch/s2441782/scenarios/prob-scen-spatial/
-#$ -o /exports/eddie/scratch/s2441782/scenarios/spatial/ST-PR-NEN/jobfiles
-#$ -e /exports/eddie/scratch/s2441782/scenarios/spatial/ST-PR-NEN/jobfiles
+#$ -o /exports/eddie/scratch/s2441782/scenarios/spatial/ST-PR-NEN/jobfiles/
+#$ -e /exports/eddie/scratch/s2441782/scenarios/spatial/ST-PR-NEN/jobfiles/
 ##$ -l h_rt=4:00:0,h_vmem=16G
 #$ -pe sharedmem 8
-##$ -M s2441782@ed.ac.uk
-##$ -m bea
+#$ -M s2441782@ed.ac.uk
+#$ -m bea
 #$ -t 2-3
 
 # Initialise modules
