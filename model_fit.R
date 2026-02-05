@@ -38,7 +38,7 @@ if (local_run) {
   path_out <- file.path("~/Documents/proj2", "spatial", ofolder)
   # path.fig <- file.path("~/Documents/proj2",ofolder,"fig")
   # path.samples <- file.path("~/Documents/proj2",ofolder,"sample")
-  mc <- detectCores() - 2
+  mc <- available_cores() - 2
 } else {
   large_obj_path <- "/exports/eddie/scratch/s2441782/scenarios/spatial"
   mod_obj_path <- file.path(large_obj_path, "model_objects")
@@ -48,7 +48,7 @@ if (local_run) {
   )
   # path.fig <- file.path(large_obj_path,ofolder,"fig")
   # path.samples <- file.path(large_obj_path,ofolder,"sample")
-  mc <- detectCores()
+  mc <- available_cores()
   temp_lib <- "/exports/eddie3_homes_local/s2441782/lib"
   .libPaths(temp_lib)
 }

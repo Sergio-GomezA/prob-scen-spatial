@@ -3762,3 +3762,26 @@ book.plot.field <- function(
     plot(poly, add = TRUE, col = 'grey')
   }
 }
+
+
+available_cores <- function() {
+  x <- system("taskset -pc $$", intern = TRUE)
+
+  # extract CPU list after colon
+  cpus <- sub(".*: ", "", x)
+
+  # split ranges like 19-22 or 1,19,20,21
+  parts <- strsplit(cpus, ",")[[1]]
+
+  total <- 0
+  for (p in parts) {
+    if (grepl("-", p)) {
+      r <- as.integer(strsplit(p, "-")[[1]])
+      total <- total + (r[2] - r[1] + 1)
+    } else {
+      total <- total + 1
+    }
+  }
+
+  total
+}
