@@ -245,7 +245,7 @@ cat(
 
 
 ########## Model fitting ######################################################
-source("aux_funct_ps.R")
+# source("aux_funct_ps.R")
 # undebug(history_window)
 # debug(fit_inla_model)
 # initial_values <- NULL
