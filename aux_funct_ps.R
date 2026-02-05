@@ -2766,7 +2766,7 @@ fit_inla_model <- function(
     )
 
     if (any(grepl("matern", features_vec))) {
-      browser()
+      # browser()
       st.group = data$time_idx
       A1 <- inla.spde.make.A(
         mesh = mesh,

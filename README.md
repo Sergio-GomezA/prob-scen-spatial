@@ -21,19 +21,18 @@ Converting Point Forecasts to probabilistic wind power scenarios for a set of wi
 - [ ] Plot effects
   - [x] Effects used before
   - [ ] Spatial related effects
-    - [ ] Extract field at locations used in fitted next 24 hours
+    - [x] Extract field at locations used in fitted next 24 hours
     - [ ] Extract field at unseen locations next 24 hours
 
 - [ ] Generate scenarios
-  - [ ] Test/ fix code to get samples from spatial models
-  - [ ] Adapt code to get plots from aggregated/all/select locations
-  - [ ] Nonparametric scenarios fro aggregated/all locations
+  - [x] Test/ fix code to get samples from spatial models
+  - [x] Adapt code to get plots from all locations
+  - [ ] Nonparametric scenarios for all locations
   - [ ] PR-NEN
   - [ ] PR-AR-NEN
   - [ ] ST-NEN
-  - [ ] ST-PR-NEN
-  - [ ] ST2-PR-NEN (non-separable)
-  - [ ] Regime switching
+  - [x] ST-PR-NEN
+
 
 - [ ] Scenario scoring
   - [ ] Ramp distribution

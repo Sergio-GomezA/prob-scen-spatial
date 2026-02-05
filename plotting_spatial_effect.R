@@ -77,16 +77,21 @@ fit_obs_df <- pred_df <- data_masked %>%
   slice(idat_pred - n) %>%
   select(time, site_name) %>%
   left_join(data.scaled, by = c("time", "site_name")) %>%
-  mutate(fitted = mod.temp$summary.fitted.values$mean[idat_pred] + forecast.cf)
+  mutate(
+    fitted = mod.temp$summary.fitted.values$mean[idat_pred] + forecast.cf,
+    linpred = mod.temp$summary.linear.predictor$mean[idat_pred] + forecast.cf
+  )
 
 fit_obs_df %>%
   ggplot() +
   geom_line(aes(time, fitted, col = "model")) +
+  # geom_line(aes(time, linpred, col = "lin pred")) +
+  geom_line(aes(time, forecast.cf, col = "point forecast")) +
   geom_line(aes(time, actuals.cf, col = "observed")) +
   facet_wrap(~site_name) +
   scale_color_manual(
-    values = c("darkred", "darkblue"),
-    breaks = c("model", "observed")
+    values = c("darkred", "darkblue", "gray50"),
+    breaks = c("observed", "model", "point forecast")
   ) +
   theme(
     legend.position = "inside",
@@ -101,6 +106,81 @@ ggsave(
   "fig/ts_wfsamp_24-07-01.pdf",
   width = 10,
   height = 7
+)
+mod.temp$summary.fitted.values$mean %>% length()
+mod.temp$summary.fitted.values[idat_pred, ] %>% head()
+mod.temp$summary.fitted.values %>% row.names() %>% substr(., 1, 10) %>% unique()
+
+grepv("fitted\\.APred", row.names(mod.temp$summary.fitted.values)) %>%
+  length() /
+  2
+require(INLA)
+test_samples <- windpow.samples <- inla.posterior.sample(
+  n = 100,
+  result = mod.temp,
+  selection = list(Predictor = idat_pred),
+  # num.threads = "1:1",
+  seed = 0
+)
+linpredictor.samples <- sapply(test_samples, \(x) x$latent) %>% t()
+precision.samples2 <- sapply(test_samples, \(x) x$hyperpar) %>% t()
+
+precision.samples <- inla.hyperpar.sample(n = 100, result = mod.temp)
+phi.samples <- precision.samples2[, 1]
+set.seed(0)
+post.pred.samples <- sapply(
+  1:100,
+  \(x) {
+    rnorm(
+      # add gaussian noise
+      ncol(linpredictor.samples),
+      linpredictor.samples[x, ],
+      1 / sqrt(phi.samples[x])
+    )
+  }
+) %>%
+  t()
+
+quants <- post.pred.samples %>%
+  apply(., 2, quantile, probs = c(0.025, 0.975))
+fit_obs_df %>%
+  mutate(
+    samp1 = post.pred.samples[1, ] + forecast.cf,
+    q_l = quants[1, ] + forecast.cf,
+    q_h = quants[2, ] + forecast.cf
+  ) %>%
+  ggplot() +
+  geom_ribbon(
+    aes(time, ymin = q_l, ymax = q_h, fill = "95% cred")
+  ) +
+  geom_line(aes(time, fitted, col = "model")) +
+  # geom_line(aes(time, linpred, col = "lin pred")) +
+  # geom_line(aes(time, samp1, col = "samp1")) +
+  geom_line(aes(time, forecast.cf, col = "point forecast")) +
+  geom_line(aes(time, actuals.cf, col = "observed")) +
+  facet_wrap(~site_name) +
+  scale_color_manual(
+    values = c("darkred", "darkblue", "gray50", "gray25"),
+    breaks = c("observed", "model", "point forecast", "samp1")
+  ) +
+  scale_fill_manual(,
+    values = blues9[3]
+  ) +
+  theme(
+    legend.position = "bottom",
+    legend.position.inside = c(0.92, 0.05),
+    legend.background = element_blank(), # Makes background completely transparent
+    legend.box.background = element_rect(fill = NA, color = NA), # No border
+    axis.text = element_text(angle = 90)
+  ) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(col = "", x = "hour", y = "normalised power") +
+  scale_x_datetime(date_labels = "%H:%M")
+# test_samples[[1]]$latent %>% head()
+ggsave(
+  "fig/ts2_wfsamp_24-07-01.pdf",
+  width = 10,
+  height = 10
 )
 
 ## ----meanrf--------------------------------------------------------------
