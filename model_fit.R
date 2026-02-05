@@ -129,6 +129,7 @@ Spanning dates: %s to %s
   min(data.scaled$time) %>% format(., "%Y-%m-%d %H:%M"),
   max(data.scaled$time) %>% format(., "%Y-%m-%d %H:%M")
 ))
+source("aux_funct_ps.R")
 data_masked <- history_window(
   data.scaled,
   t1,
@@ -151,6 +152,18 @@ data_masked <- history_window(
   ) %>%
   st_drop_geometry()
 
+cat(sprintf(
+  "Train data has been filtered to the specified rolling window of %d %s\n",
+  window,
+  wind_units
+))
+cat(sprintf(
+  "Spanning dates: %s to %s\n",
+  min(data_masked$time) %>% format(., "%Y-%m-%d %H:%M"),
+  max(data_masked$time[!is.na(data_masked$actuals.cf)]) %>%
+    format(., "%Y-%m-%d %H:%M")
+))
+
 time_grid <- seq(
   from = min(data_masked$time),
   to = max(data_masked$time),
@@ -160,11 +173,15 @@ time_grid <- seq(
 data_masked$time_idx <- match(data_masked$time, time_grid)
 time_idx_range <- data_masked$time_idx %>% range()
 cat(sprintf(
-  "Time reindexed ranging from %d to %d\n",
+  "Time reindexed ranging from %d to %d x %s %d\n",
   time_idx_range[1],
+  window,
+  case_when(
+    wind_units == "months" ~ "24 x 30 + 24 ~",
+    wind_units == "days" ~ "24 + 24 ="
+  ),
   time_idx_range[2]
 ))
-
 
 cat("Building spatial mesh\n")
 # length(spde_idx$spatial)
@@ -175,7 +192,7 @@ cat("Building spatial mesh\n")
 loc_unique <- data_masked %>%
   distinct(x, y) %>%
   as.matrix()
-bnd <- fm_extensions(loc_unique, convex = c(-.15, -.25))
+bnd <- fm_extensions(loc_unique, convex = c(-.1, -.20))
 # bnd <- fm_extensions(loc_unique, convex = c(-.1, -.15))
 # ggplot() + geom_sf(data = bnd[[1]])
 wf.mesh <- fm_mesh_2d(
@@ -208,7 +225,6 @@ cat(
     model_list_file
   )
 )
-
 
 # extract current choice
 model_type <- model_list[model_id, 1:6]

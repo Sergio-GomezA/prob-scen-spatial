@@ -2501,8 +2501,7 @@ get_mod_stats <- function(
 mask_inla <- function(
   data,
   columns = c("actuals.cf", "actuals", "err.cf", "err"),
-  tt,
-  h = 24 # hours
+  tt
 ) {
   result <- data %>%
     mutate(across(any_of(columns), \(x) ifelse(time <= tt, x, NA)))
@@ -2533,7 +2532,7 @@ history_window <- function(
   #   filter(time <= t1)
 
   result <- scen.data %>% #resultb #%>%
-    filter(time >= t0, time <= t1) %>%
+    filter(time > t0, time <= t1) %>%
     {
       if (mask) mask_inla(., tt = t) else .
     }
