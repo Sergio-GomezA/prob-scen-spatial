@@ -658,6 +658,7 @@ simulation.plots.inla2 <- function(
     resp_Y <- inla.model$.args$data$Y_err.cf[idat_resp, 2]
     fcst_points <- which(is.na(resp_Y)) + n
 
+    sel <- list(APredictor = fcst_points)
     #
   } else {
     if (grepl("Y_", response) & !is.null(inla.model$.args$data$eta[1])) {
@@ -672,6 +673,7 @@ simulation.plots.inla2 <- function(
       by = "hour"
     )
     fcst_points <- which(inla.model$.args$data$time %in% fcst_dates) + pos_shift
+    sel <- list(Predictor = fcst_points)
   }
 
   # h <- length(fcst_points)
@@ -681,15 +683,16 @@ simulation.plots.inla2 <- function(
     windpow.samples <- inla.posterior.sample(
       n = nsamp,
       result = inla.model,
-      selection = list(Predictor = fcst_points),
+      selection = sel,
       # num.threads = paste0(mc, ":4")
       # use.improved.mean = FALSE,
       # verbose = TRUE,
-      num.threads = "1:1",
+      # num.threads = "1:1",
       seed = inla_seed
     )
 
-    precision.samples <- inla.hyperpar.sample(n = nsamp, result = inla.model)
+    # precision.samples <- inla.hyperpar.sample(n = nsamp, result = inla.model)
+    precision.samples <- sapply(windpow.samples, \(x) x$hyperpar) %>% t()
     # Recover errors precision
 
     hypers <- inla.model$summary.hyperpar %>% rownames()

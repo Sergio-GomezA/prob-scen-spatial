@@ -22,19 +22,21 @@ mod.temp$.args$data$wf.spde$mesh$loc %>% head()
 data_masked$time_idx %>% unique() %>% length()
 mod.temp$.args$data$eta %>% length()
 mod.temp$.args$data$st.group %>% unique() %>% length()
-# inla.spde.make.A()
+mod.temp$.args$data$st.group %>% summary()
 
-(7 * 24 + 25) * mod.temp$.args$data$wf.spde$n.spde
-224 * 193 / 2
+(7 * 24 + 24) * mod.temp$.args$data$wf.spde$n.spde
+220 * 192 / 2
 mod.temp$summary.fitted.values %>% row.names() %>% length()
 grepv("APredictor", row.names(mod.temp$summary.fitted.values)) %>% length()
+grepv("^fitted.Predictor", row.names(mod.temp$summary.fitted.values)) %>%
+  length()
 
-mod.temp$.args$data$Y_err.cf %>% length()
+mod.temp$.args$data$Y_err.cf %>% dim()
 names_fitted <- row.names(mod.temp$summary.fitted.values)
-names_fitted[!grepl("APredictor", names_fitted)] %>% length()
+
 
 substr(names_fitted, 8, 12) %>% unique()
-substr(row.names(mod.temp$summary.fitted.values), 1, 5) %>% unique()
+substr(row.names(mod.temp$summary.fitted.values), 7, 10) %>% unique()
 
 
 ## ----rfidx---------------------------------------------------------------
@@ -64,16 +66,18 @@ data_masked <- history_window(
   ) %>%
   st_drop_geometry()
 # full set of indices
-# idat <- inla.stack.index(stack, 'wf.data')$data
-idat <- stack$data$index$wf.data
+# undebug(inla.stack.index)
+idat <- inla.stack.index(stack, 'wf.data')$data
+idat2 <- stack$data$index$wf.data
+identical(idat, idat2)
 n <- length(idat) / 2
 # excluding fakezeros
 idat_resp <- idat[n + 1:n]
 
+resp_Y <- mod.temp$.args$data$Y_err.cf[idat_resp, 2]
 # next day indices
-resp_Y <- mod.temp$.args$data$Y_err.cf[n + 1:n, 2]
 idat_pred <- which(is.na(resp_Y)) + n
-fit_obs_df <- pred_df <- data_masked %>%
+fit_obs_df <- data_masked %>%
   slice(idat_pred - n) %>%
   select(time, site_name) %>%
   left_join(data.scaled, by = c("time", "site_name")) %>%
@@ -81,6 +85,13 @@ fit_obs_df <- pred_df <- data_masked %>%
     fitted = mod.temp$summary.fitted.values$mean[idat_pred] + forecast.cf,
     linpred = mod.temp$summary.linear.predictor$mean[idat_pred] + forecast.cf
   )
+
+# scatter observed vs inla fitted
+fit_obs_df %>%
+  select(site_name, time, actuals.cf, fitted) %>%
+  ggplot() +
+  geom_point(aes(actuals.cf, fitted))
+
 
 fit_obs_df %>%
   ggplot() +
@@ -107,9 +118,7 @@ ggsave(
   width = 10,
   height = 7
 )
-mod.temp$summary.fitted.values$mean %>% length()
-mod.temp$summary.fitted.values[idat_pred, ] %>% head()
-mod.temp$summary.fitted.values %>% row.names() %>% substr(., 1, 10) %>% unique()
+
 
 grepv("fitted\\.APred", row.names(mod.temp$summary.fitted.values)) %>%
   length() /
@@ -118,7 +127,7 @@ require(INLA)
 test_samples <- windpow.samples <- inla.posterior.sample(
   n = 100,
   result = mod.temp,
-  selection = list(Predictor = idat_pred),
+  selection = list(APredictor = idat_pred),
   # num.threads = "1:1",
   seed = 0
 )
@@ -127,6 +136,9 @@ precision.samples2 <- sapply(test_samples, \(x) x$hyperpar) %>% t()
 
 precision.samples <- inla.hyperpar.sample(n = 100, result = mod.temp)
 phi.samples <- precision.samples2[, 1]
+
+plot(precision.samples[, 1])
+plot(phi.samples)
 set.seed(0)
 post.pred.samples <- sapply(
   1:100,
@@ -182,6 +194,117 @@ ggsave(
   width = 10,
   height = 10
 )
+
+fit_obs_df %>%
+  mutate(
+    samp1 = post.pred.samples[1, ] + forecast.cf,
+    q_l = quants[1, ] + forecast.cf,
+    q_h = quants[2, ] + forecast.cf
+  ) %>%
+  filter(site_name == "Black Law") %>%
+  select(time, actuals.cf, fitted, forecast.cf) %>%
+  pivot_longer(cols = -time) %>%
+  ggplot() +
+  geom_line(aes(time, value, col = name)) +
+  scale_color_aaas()
+
+blacklaw_ind <- which(
+  data_masked$site_name == "Black Law" & is.na(data_masked$actuals.cf)
+)
+set.seed(1)
+nsamp <- 10
+bl_samples <- windpow.samples <- inla.posterior.sample(
+  n = nsamp,
+  result = mod.temp,
+  # selection = list(Predictor = n + blacklaw_ind),
+  # num.threads = "1:1",
+  seed = 1
+)
+
+bl_latent <- sapply(bl_samples, \(x) x$latent[n + blacklaw_ind]) %>%
+  as.data.frame() %>%
+  setNames(paste0("sim", 1:nsamp))
+bl_latent <- sapply(bl_samples, \(x) x$latent) %>%
+  as.data.frame() %>%
+  setNames(paste0("sim", 1:nsamp))
+mod.temp$summary.fitted.values[n + blacklaw_ind, ] %>%
+  mutate(
+    ind = blacklaw_ind,
+    time = data_masked$time[blacklaw_ind],
+    linpred = mod.temp$summary.linear.predictor[n + blacklaw_ind, "mean"],
+    forecast.cf = data_masked$forecast.cf[blacklaw_ind]
+  ) %>%
+  bind_cols(bl_latent[, 1:3]) %>%
+  # mutate(across(-c(ind, time), ~ . + forecast.cf)) %>%
+  pivot_longer(cols = -c(ind, time)) %>%
+  filter(
+    name %in%
+      c("mean", "linpred", "actuals.cf", "forecast.cf") |
+      grepl("quant|sim", name)
+  ) %>%
+  ggplot() +
+  geom_line(aes(ind, value, col = name)) +
+  scale_color_aaas()
+
+
+# using vignette
+## ----samples-------------------------------------------------------------
+nn <- 20
+s <- inla.posterior.sample(
+  n = nn,
+  mod.temp,
+  intern = TRUE,
+  seed = 0,
+  add.names = FALSE
+)
+
+## Find the values of latent field "i" in samples from mesh1
+contents <- mod.temp$misc$configs$contents
+effect <- "spatial"
+id.effect <- which(contents$tag == effect)
+ind.effect <- contents$start[id.effect] - 1 + (1:contents$length[id.effect])
+
+
+# Obtain predictions at the nodes of mesh2
+spde <- mod.temp$.args$data$wf.spde
+mesh <- mod.temp$.args$data$wf.spde$mesh
+loc1 = mesh$loc[, 1:2]
+loc2 = mesh$loc[, 1:2]
+n = mesh$n
+
+mtch = match(data.frame(t(loc2)), data.frame(t(loc1)))
+idx.c = which(!is.na(mtch))
+idx.u = setdiff(1:mesh$n, idx.c)
+p = c(idx.u, idx.c)
+
+ypred.mesh2 = matrix(c(NA), mesh$n, nn)
+
+m <- n - length(idx.c)
+iperm <- numeric(m)
+
+t0 <- Sys.time()
+for (ind in 1:nn) {
+  Q.tmp = inla.spde2.precision(spde, theta = s[[ind]]$hyperpar[2:3])
+
+  Q = Q.tmp[p, p]
+  Q.AA = Q[1:m, 1:m]
+  Q.BB = Q[(m + 1):n, (m + 1):n]
+  Q.AB = t(Q[(m + 1):n, 1:m])
+  Q.AA.sf = Matrix::Cholesky(Q.AA, perm = TRUE, LDL = FALSE)
+  perm = Q.AA.sf@perm + 1
+  iperm[perm] = 1:m
+  x = solve(Q.AA.sf, rnorm(m), system = "Lt")
+  xc = s[[ind]]$latent[ind.effect]
+  xx = solve(Q.AA.sf, -Q.AB %*% xc, system = "A")
+
+  x = rep(NA, n)
+  x[idx.u] = c(as.matrix(xx))
+  x[idx.c] = xc
+
+  ypred.mesh2[, ind] = x
+}
+Sys.time() - t0
+
 
 ## ----meanrf--------------------------------------------------------------
 cor(fit_obs_df$actuals.cf, fit_obs_df$fitted)
