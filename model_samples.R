@@ -83,13 +83,13 @@ mod_obj_path <- file.path(
   ifelse(is.null(hregime), "model_objects", "model_objects_reg")
 )
 
-inla.setOption(num.threads = sprintf("%d:1", mc))
 source("fcst_functions.R")
 source("functions_probscen.R")
 source("aux_funct.R")
 source("aux_funct_ps.R")
 
 mc <- available_cores() - ifelse(local_run, 2, 0)
+inla.setOption(num.threads = sprintf("%d:1", mc))
 
 # training data window length in units
 window_lengths <- c(7, 14, 21, 30, 2)
