@@ -60,10 +60,8 @@ hregime <- if (hregime == "NULL") NULL else hregime
 if (local_run) {
   large_obj_path <- "~/Documents/proj2/spatial"
   # input_scalingpars <- "aggr_powr_bpa_scaling_pars.csv"
-  mc <- detectCores() - 2
 } else {
   large_obj_path <- "/exports/eddie/scratch/s2441782/scenarios/spatial"
-  mc <- detectCores()
   temp_lib <- "/exports/eddie3_homes_local/s2441782/lib"
   .libPaths(temp_lib)
 }
@@ -90,6 +88,8 @@ source("fcst_functions.R")
 source("functions_probscen.R")
 source("aux_funct.R")
 source("aux_funct_ps.R")
+
+mc <- available_cores() - ifelse(local_run, 2, 0)
 
 # training data window length in units
 window_lengths <- c(7, 14, 21, 30, 2)
@@ -330,7 +330,7 @@ if (!dir.exists(path.fig)) {
 # undebug(simulation.plots.inla2)
 # save samples plot and get posterior samples
 
-# debug(simulation.plots.inla2)
+set.seed(1)
 sim.obj <- simulation.plots.inla2(
   inla.model = new_fit,
   data = data.scaled,
@@ -347,7 +347,7 @@ sim.obj <- simulation.plots.inla2(
   path = path.fig,
   run.name = paste0(mod.code, t1),
   skip.plots = FALSE,
-  inla_seed = 0
+  inla_seed = 1
   # sample.df = sample.test$samples,
   # legend.position = "bottom"
 )
