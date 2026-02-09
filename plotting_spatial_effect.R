@@ -1,5 +1,10 @@
 require(tidyverse)
 require(INLA)
+require(arrow)
+require(sf)
+require(ggsci)
+require(fmesher)
+
 theme_set(theme_bw())
 
 source("aux_funct_ps.R")
@@ -224,9 +229,9 @@ bl_samples <- windpow.samples <- inla.posterior.sample(
 bl_latent <- sapply(bl_samples, \(x) x$latent[n + blacklaw_ind]) %>%
   as.data.frame() %>%
   setNames(paste0("sim", 1:nsamp))
-bl_latent <- sapply(bl_samples, \(x) x$latent) %>%
-  as.data.frame() %>%
-  setNames(paste0("sim", 1:nsamp))
+# bl_latent <- sapply(bl_samples, \(x) x$latent) %>%
+#   as.data.frame() %>%
+#   setNames(paste0("sim", 1:nsamp))
 mod.temp$summary.fitted.values[n + blacklaw_ind, ] %>%
   mutate(
     ind = blacklaw_ind,

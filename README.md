@@ -33,10 +33,18 @@ Converting Point Forecasts to probabilistic wind power scenarios for a set of wi
   - [ ] ST-NEN
   - [x] ST-PR-NEN
 
-
 - [ ] Scenario scoring
   - [ ] Ramp distribution
   - [ ] CRPS, Energy, Variogram
   - [ ] PIT diagrams
   - [ ] Calibration diagrams
   - [ ] Spatial OOS
+
+  Fix day ahead to include hours with wind forecast available
+
+  Variable selection code
+  Regime switching model with sufficient amount of data
+  Special masking that removes other regimes' data
+
+  Add data section
+  Explain spatial model

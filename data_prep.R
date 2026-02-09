@@ -475,10 +475,50 @@ model_list_df <- data.frame(
     )
   ) %>%
   mutate(
-    fderiv = ifelse(id == 3, "fd", fderiv)
+    # fderiv = ifelse(id == 3, "fd", fderiv),
+    fderiv = ifelse((grepl("etaderiv", all_combinations)), fderiv, "fd")
   )
+
+extra_models <- data.frame(
+  id = 5:7
+) %>%
+  mutate(
+    family = "gaussian",
+    fderiv = "eta",
+    out = "error",
+    transformation = "normalised",
+    response = "err.cf",
+    all_combinations = list(
+      c("ws.w_group", "fcst_group", "hour", "matern-ar1", "etaderiv"),
+      c("ws.w_group", "fcst_group", "matern-ar1", "etaderiv"),
+      c("ws.w_group", "hour", "matern-ar1", "etaderiv")
+    )
+  ) %>%
+  mutate(
+    # fderiv = ifelse(id == 3, "fd", fderiv),
+    fderiv = ifelse((grepl("etaderiv", all_combinations)), fderiv, "fd")
+  )
+
+gauss_models <- bind_rows(model_list_df, extra_models)
+
+beta_models <- bind_rows(model_list_df, extra_models) %>%
+  mutate(
+    family = "beta",
+    out = "observed",
+    response = "actuals.cf",
+    id = 7 + 1:7
+  )
+
 
 write_parquet(
   model_list_df,
   file.path("data", model_list_fname)
 )
+
+write_parquet(
+  bind_rows(gauss_models, beta_models),
+  file.path("data", "model_list_spatial.parquet")
+)
+# list.files("../p2_replication/eddie_code/", pattern = "model_list")
+# read_rds("../p2_replication/eddie_code/model_listtop.rds")
+bind_rows(gauss_models, beta_models)

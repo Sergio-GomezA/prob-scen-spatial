@@ -15,7 +15,7 @@ format:
     toc: true
     slide-level: 2
     split-bib: true
-    output-file: "st-prob-scen_slides_26-02-04.pdf"
+    output-file: "st-prob-scen_slides_04-02-04.pdf"
 header-includes:
   - \usepackage{graphicx}
 fontsize: 12pt
@@ -430,7 +430,7 @@ Map of wind farm samples
 \centering
 \small Mesh
 
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/meshhex_Scottish_wfsamp.pdf}
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/meshhex_scotish_wfsamp.pdf}
 :::
 
 :::
