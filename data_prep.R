@@ -522,3 +522,40 @@ write_parquet(
 # list.files("../p2_replication/eddie_code/", pattern = "model_list")
 # read_rds("../p2_replication/eddie_code/model_listtop.rds")
 bind_rows(gauss_models, beta_models)
+
+# list.files("data", "model")
+no_winds <- read_parquet("data/model_list_spatial.parquet") %>%
+  filter(
+    !map_lgl(all_combinations, ~ any(str_detect(.x, "fcst_group")))
+  )
+
+
+no_winds <- no_winds %>%
+  mutate(
+    all_combinations = map(
+      all_combinations,
+      ~ gsub("ws.w_group", "fcst_group", .x)
+    )
+  ) %>%
+  # pull(all_combinations) %>%
+  # ungroup() %>%
+  # View()
+  rowwise() %>%
+  mutate(
+    readable_feat = paste(unlist(all_combinations), collapse = ", ")
+  ) %>%
+  ungroup() %>%
+  mutate(id = 14 + 1:nrow(.))
+
+read_parquet("data/model_list_spatial.parquet") %>%
+  mutate(all_combinations = as.list(all_combinations)) %>%
+  bind_rows(no_winds) %>%
+  rowwise() %>%
+  mutate(
+    readable_feat = paste(unlist(all_combinations), collapse = ", ")
+  ) %>%
+  ungroup() %>%
+  # View()
+  write_parquet(
+    file.path("data", "model_list_spatial.parquet")
+  )
