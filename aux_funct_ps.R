@@ -431,9 +431,11 @@ plot_actuals_model <- function(
     cols_to_join <- "time"
   }
 
+  preffect <- grepl("^Y_", response)
+  fake_zero_adj <- ifelse(preffect, nrow(train_data), 0)
   data_site_time <- train_data %>%
     select(any_of(cols_to_join)) %>%
-    slice(fcst_points - nrow(train_data))
+    slice(fcst_points - fake_zero_adj)
 
   plot.data <- data %>%
     filter(
@@ -493,7 +495,7 @@ plot_actuals_model <- function(
     response %in% c("actuals", "err", "Y_actuals", "Y_err") ~ "actuals",
     TRUE ~ "actuals.cf"
   )
-  updated_response <- if (grepl("Y_", response)) {
+  updated_response <- if (preffect) {
     substr(response, 3, nchar(response))
   } else {
     response
@@ -631,6 +633,8 @@ simulation.plots.inla2 <- function(
     }
   reffects_vec <- inla.model$summary.random %>% names()
   spatial <- any(grepl("spatial", reffects_vec))
+  preffect <- any(grepl("eta", reffects_vec))
+
   if (spatial) {
     # t_index_range <- inla.model$.args$data$st.group %>% range(., na.rm = T)
     # forecast_t_index <- t_index_range[2] - h:0
@@ -644,21 +648,24 @@ simulation.plots.inla2 <- function(
     wf.stack <- readRDS(stack_fname)
     idat <- inla.stack.index(wf.stack, 'wf.data')$data # raw data index
 
-    n <- length(idat) / 2
+    # n <- length(idat) / 2
     n <- ifelse(
-      any(
-        grepl("eta", reffects_vec)
-      ),
-      dim(inla.model$.args$data[[response]])[1],
+      preffect,
+      dim(inla.model$.args$data[[response]])[1] /
+        2,
       length(inla.model$.args$data[[response]])
-    ) /
-      2
+    )
+
     # excluding fakezeros
-    idat_resp <- idat[n + 1:n]
+    idat_resp <- if (preffect) {
+      c(idat[n + 1:n], 2)
+    } else {
+      idat
+    }
 
     # next day indices
-    resp_Y <- inla.model$.args$data$Y_err.cf[idat_resp, 2]
-    fcst_points <- which(is.na(resp_Y)) + n
+    resp_Y <- inla.model$.args$data[[response]][idat_resp]
+    fcst_points <- which(is.na(resp_Y)) + ifelse(preffect, n, 0)
 
     sel <- list(APredictor = fcst_points)
     #

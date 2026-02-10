@@ -356,6 +356,8 @@ if (!dir.exists(path.fig)) {
 # save samples plot and get posterior samples
 
 set.seed(1)
+# source("aux_funct_ps.R")
+# debug(plot_actuals_model)
 sim.obj <- simulation.plots.inla2(
   inla.model = new_fit,
   data = data.scaled,
