@@ -909,7 +909,7 @@ simulation.plots.inla2 <- function(
       print(p.sim.large$plot)
     }
     if (save.fig) {
-      if (spatial) {
+      if (spatial | length(fcst_points) / h > 1) {
         pwidth = 10
         pheight = 7
       } else {
