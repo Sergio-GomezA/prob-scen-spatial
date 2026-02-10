@@ -19,9 +19,32 @@ local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 day_id <- 1
 window_id <- 1
 restart <- TRUE
-ofolder <- "ST-PR-NEN"
 # mod.file.name <- "2503_us_npow_eta0.rds"
 mod.file.name <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.rds"
+ofolder <- case_when(
+  grepl("err.cf", mod.file.name) &
+    grepl("etaderiv", mod.file.name) &
+    grepl("matern", mod.file.name) ~ "ST-PR-NEN",
+  grepl("actuals.cf", mod.file.name) &
+    grepl("etaderiv", mod.file.name) &
+    grepl("matern", mod.file.name) ~ "ST-PR-NPB",
+  grepl("err.cf", mod.file.name) &
+    grepl("etaderiv", mod.file.name) &
+    grepl("ar1g", mod.file.name) ~ "AR1-PR-NEN",
+  grepl("actuals.cf", mod.file.name) &
+    grepl("etaderiv", mod.file.name) &
+    grepl("ar1g", mod.file.name) ~ "AR1-PR-NPB",
+  grepl("err.cf", mod.file.name) &
+    grepl("matern", mod.file.name) ~ "ST-NEN",
+  grepl("actuals.cf", mod.file.name) &
+    grepl("matern", mod.file.name) ~ "ST-NPB",
+  grepl("err.cf", mod.file.name) &
+    grepl("etaderiv", mod.file.name) ~ "PR-NEN",
+  grepl("actuals.cf", mod.file.name) &
+    grepl("etaderiv", mod.file.name) ~ "PR-NPB",
+  TRUE ~ "Other"
+)
+
 # Get task ID and others from command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
 regime <- NULL #"mid"

@@ -1,6 +1,8 @@
 # author: Sergio
 require(tidyverse)
 require(fields)
+require(INLA)
+# require(inlabru)
 # auxiliary functions
 
 myposixct <- function(timevar, ...) {
