@@ -22,6 +22,7 @@ restart <- TRUE
 # mod.file.name <- "2503_us_npow_eta0.rds"
 mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
 mod.file.name <- "r_err.cf_f_gaussian_fd_feat_fcst_group-matern-ar1.rds"
+mod.file.name <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"
 ofolder <- case_when(
   grepl("err.cf", mod.file.name) &
     grepl("etaderiv", mod.file.name) &
@@ -356,7 +357,8 @@ if (!dir.exists(path.fig)) {
 # save samples plot and get posterior samples
 
 set.seed(1)
-# source("aux_funct_ps.R")
+source("aux_funct_ps.R")
+# debug(simulation.plots.inla2)
 # debug(plot_actuals_model)
 sim.obj <- simulation.plots.inla2(
   inla.model = new_fit,

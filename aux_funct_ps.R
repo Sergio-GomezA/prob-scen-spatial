@@ -425,7 +425,7 @@ plot_actuals_model <- function(
   }
   # browser()
 
-  if (spatial) {
+  if (spatial | ncol(samples) / h > 1) {
     cols_to_join <- c("time", "site_name")
   } else {
     cols_to_join <- "time"
@@ -678,7 +678,7 @@ simulation.plots.inla2 <- function(
     # find points to forecast
     fcst_dates <- seq(
       from = t1 + 0 * 60 * 60,
-      to = t1 + h * 60 * 60,
+      to = t1 + (h - 1) * 60 * 60,
       by = "hour"
     )
     fcst_points <- which(inla.model$.args$data$time %in% fcst_dates) + pos_shift
