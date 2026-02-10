@@ -583,7 +583,7 @@ plot_actuals_model <- function(
     labs(x = "") +
     scale_x_datetime(date_labels = "%H:%M") +
     {
-      if (spatial) facet_wrap(~site_name) else NULL
+      if (spatial | ncol(samples) / h > 1) facet_wrap(~site_name) else NULL
     } +
     theme(
       legend.position = "none",
