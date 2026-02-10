@@ -21,6 +21,7 @@ window_id <- 1
 restart <- TRUE
 # mod.file.name <- "2503_us_npow_eta0.rds"
 mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
+mod.file.name <- "r_err.cf_f_gaussian_fd_feat_fcst_group-matern-ar1.rds"
 ofolder <- case_when(
   grepl("err.cf", mod.file.name) &
     grepl("etaderiv", mod.file.name) &
@@ -135,6 +136,7 @@ quantile.seq <- c(0.025, 0.5, 0.975)
 n.samples <- 1000
 show.fig <- FALSE
 save.fig <- TRUE
+cens <- 0.001
 
 # translate variables from arguments
 t1 <- time_seq[day_id]
@@ -312,7 +314,7 @@ mod.code <- sprintf(
 cat("Refitting model for new day-ahead prediction")
 # record initial time
 start_time <- Sys.time()
-# source("aux_funct_ps.R")
+source("aux_funct_ps.R")
 # debug(fit_a_date)
 # re fit model
 new_fit <- fit_a_date(

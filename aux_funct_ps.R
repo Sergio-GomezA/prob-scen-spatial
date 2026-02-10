@@ -1133,8 +1133,8 @@ fit_a_date <- function(
 
       wf.stack <- inla.stack(
         data = setNames(
-          list(model_data[[model_type$response]]),
-          model_type$response
+          list(model_data[[response]]),
+          response
         ),
         A = list(A1, 1),
         effects = list(
@@ -1146,7 +1146,7 @@ fit_a_date <- function(
             intercept = 1,
             # t = data0$t,
             model_data[,
-              reffects_vec[-which(grepl("t|spatial|eta", reffects_vec))],
+              reffects_vec[-which(grepl("^t|spatial|eta", reffects_vec))],
               drop = FALSE
             ]
           )
@@ -1177,7 +1177,11 @@ fit_a_date <- function(
 
       stack_fname <- sprintf(
         "misc/stack_r_%s_f_%s_%s_feat_%s_t%s.rds",
-        updated_response,
+        ifelse(
+          length(inla.object$.args$family) > 1,
+          updated_response,
+          response
+        ),
         tail(inla.object$.args$family, 1),
         ifelse(any(grepl("eta", reffects_vec)), "eta", "fd"),
         paste(features_vec, collapse = "-"),
