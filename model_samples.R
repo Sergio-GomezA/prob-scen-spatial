@@ -16,12 +16,13 @@ local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 
 # job id is day index to get samples
 # Defaults if no argument is provided
-day_id <- 1
+day_id <- 25
 window_id <- 1
 restart <- TRUE
 # mod.file.name <- "2503_us_npow_eta0.rds"
 mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
 mod.file.name <- "r_actuals.cf_f_beta_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
+mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-ar1g-etaderiv.rds"
 ofolder <- case_when(
   grepl("err.cf", mod.file.name) &
     grepl("etaderiv", mod.file.name) &

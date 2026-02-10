@@ -657,14 +657,16 @@ simulation.plots.inla2 <- function(
     )
 
     # excluding fakezeros
-    idat_resp <- if (preffect) {
-      c(idat[n + 1:n], 2)
+    if (preffect) {
+      idat_resp <- idat[n + 1:n]
+      resp_Y <- inla.model$.args$data[[response]][idat_resp, 2]
     } else {
-      idat
+      idat_resp <- idat
+      resp_Y <- inla.model$.args$data[[response]][idat_resp]
     }
 
     # next day indices
-    resp_Y <- inla.model$.args$data[[response]][idat_resp]
+
     fcst_points <- which(is.na(resp_Y)) + ifelse(preffect, n, 0)
 
     sel <- list(APredictor = fcst_points)
