@@ -398,7 +398,7 @@ start_time <- Sys.time()
 cols_loc_time <- sim.obj$quantiles %>%
   filter(time > t1) %>%
   select(lon, lat, time, site_name, actuals.cf, forecast.cf, matches("quant"))
-
+sim.obj$samples %>% dim()
 sim.obj$samples %>%
   t() %>%
   as.data.frame() %>%

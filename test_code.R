@@ -16,7 +16,7 @@
 #     alpha = 0.5
 #   ) +
 #   gg(pcor)
-
+require(data.table)
 model_fnames <- list.files("~/Documents/proj2/spatial/model_objects")
 
 test_df <- data.frame(

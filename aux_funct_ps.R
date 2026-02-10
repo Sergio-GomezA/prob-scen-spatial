@@ -439,8 +439,8 @@ plot_actuals_model <- function(
 
   plot.data <- data %>%
     filter(
-      time <= t1 + h * 60 * 60,
-      time > t1
+      time < t1 + h * 60 * 60,
+      time >= t1
     ) %>%
     mutate(forecast.cf_orig = forecast.cf) %>%
     left_join(
