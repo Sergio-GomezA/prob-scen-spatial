@@ -1055,7 +1055,7 @@ fit_a_date <- function(
         # other effects
         reffects_vec[
           grep(
-            "t|spatial|eta",
+            "^t|spatial|eta",
             reffects_vec,
             invert = TRUE
           )

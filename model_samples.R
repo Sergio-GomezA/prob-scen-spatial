@@ -20,7 +20,7 @@ day_id <- 1
 window_id <- 1
 restart <- TRUE
 # mod.file.name <- "2503_us_npow_eta0.rds"
-mod.file.name <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.rds"
+mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
 ofolder <- case_when(
   grepl("err.cf", mod.file.name) &
     grepl("etaderiv", mod.file.name) &
@@ -69,7 +69,7 @@ if (length(args) > 5) {
 }
 
 mod_suffix <- str_extract(mod.file.name, "(?<=feat_).*?(?=\\.rds$)")
-mod.version <- str_extract(mod.file.name, "[^r_.]+(?=\\.rds$)")
+# mod.version <- str_extract(mod.file.name, "[^r_.]+(?=\\.rds$)")
 mod.version <- str_extract(mod.file.name, "(?<=reg_).*?(?=\\.rds$)")
 
 hregime <- case_when(
@@ -131,7 +131,7 @@ time_seq <- seq(
 # hours to predict
 h_predict <- 24
 
-quantile.seq <- c(0.005, 0.025, 0.5, 0.975)
+quantile.seq <- c(0.025, 0.5, 0.975)
 n.samples <- 1000
 show.fig <- FALSE
 save.fig <- TRUE
