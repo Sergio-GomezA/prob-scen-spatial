@@ -1308,7 +1308,7 @@ all.visualistions <- function(
 #   return(result_df)
 # }
 
-functions_to_scenarios <- function(data, func_list, ...) {
+functions_to_scenarios <- function(data, func_list, spatial = FALSE, ...) {
   # Check that func_list is a list of functions
   if (!all(sapply(func_list, is.function))) {
     stop("func_list should be a list of functions.")
@@ -1316,14 +1316,15 @@ functions_to_scenarios <- function(data, func_list, ...) {
 
   # Apply each function to each column and store the results in a list
   results <- lapply(func_list, function(f) {
+    scen_margin <- ifelse(spatial, 1, 2)
     # Check if the function can take additional arguments by checking its formal arguments
     func_args <- names(formals(f))
     if ("..." %in% func_args || all(names(list(...)) %in% func_args)) {
       # Apply function with extra arguments and check if result has multiple values
-      apply(data, 2, function(x) f(x, ...))
+      apply(data, scen_margin, function(x) f(x, ...))
     } else {
       # Apply function without extra arguments
-      apply(data, 2, f)
+      apply(data, scen_margin, f)
     }
   })
 
@@ -1357,7 +1358,7 @@ functions_to_scenarios <- function(data, func_list, ...) {
   # rownames(result_df) <- 1:ncol(data)
 
   # Reset row names for tidy output, adding time points
-  result_df <- tibble::rownames_to_column(result_df, var = "time")
+  result_df <- tibble::rownames_to_column(result_df, var = "id")
 
   return(result_df)
 }
@@ -1467,11 +1468,12 @@ stats_hour_model <- function(
   response,
   probs = c(0.005, 0.025, 0.5, 0.975),
   compressed = FALSE,
+  ext = ".csv.gz",
   clipping = FALSE,
   power_data = data.scaled
 ) {
   if (compressed) {
-    fname <- paste0(model.name, date(t1), ".csv.gz")
+    fname <- paste0(model.name, date(t1), ext)
   } else {
     fname <- paste0(model.name, date(t1), ".csv")
   }
@@ -1481,7 +1483,9 @@ stats_hour_model <- function(
     sample.path,
     fname
   ) %>%
-    fread(.) %>%
+    {
+      if (ext == ".parquet") read_parquet(.) else fread(.)
+    } %>%
     as.data.frame()
 
   # compare with actuals - forecast error
@@ -1506,19 +1510,43 @@ stats_hour_model <- function(
     grepl("err$", response) ~ subsample[["capacity"]],
     TRUE ~ 1,
   )
-  # rescaling
-  scen.tbl <- apply(
-    scen.tbl[, 1:24],
-    1,
-    \(row) {
-      rescaled_sample <- (row + additive_factor) / mult_factor
-      if (clipping) {
-        rescaled_sample <- pmin(1, pmax(0, rescaled_sample))
+  spatial_eff <- grepl("matern", model.name)
+  multiple_times <- length(unique(subsample$time)) < nrow(subsample)
+  # browser()
+  if (spatial_eff | multiple_times) {
+    id_cols <- scen.tbl %>% select(time, site_name)
+    scen.tbl <- scen.tbl %>%
+      mutate(
+        across(matches("^sim"), ~ (. + additive_factor) / mult_factor)
+      ) %>%
+      {
+        if (clipping) {
+          . %>%
+            mutate(
+              across(matches("^sim"), ~ pmin(1, pmax(0, .)))
+            )
+        } else {
+          .
+        }
+      } %>%
+      select(matches("^sim"))
+  } else {
+    id_cols <- fcst_dates
+    # rescaling
+    scen.tbl <- apply(
+      scen.tbl[, 1:24],
+      1,
+      \(row) {
+        rescaled_sample <- (row + additive_factor) / mult_factor
+        if (clipping) {
+          rescaled_sample <- pmin(1, pmax(0, rescaled_sample))
+        }
+        rescaled_sample
       }
-      rescaled_sample
-    }
-  ) %>%
-    t()
+    ) %>%
+      t()
+  }
+
   observed <- "actuals.cf"
   # orig.obs <- subsample %>%
   #   select(time,all_of(c("","forecast.cf")))
@@ -1532,53 +1560,74 @@ stats_hour_model <- function(
 
   # Call the function with desired quantiles
   # result <- functions_to_scenarios(sim_data, function_list, probs = c(0.05, 0.5, 0.95))
-  result <- functions_to_scenarios(scen.tbl, function_list, probs = probs) %>%
-    mutate(
-      # Remove "t_" prefix and convert to POSIXct, handling NA text entries
-      # time = if_else(
-      #   str_detect(time, "^NA$"), # Check if the value is "NA"
-      #   NA_POSIXct_,              # Keep it as NA if it's "NA"
-      #   as.POSIXct(str_remove(time, "^t_"), format = "%Y-%m-%d_%H", tz = "PST")
-      # )
-      time = fcst_dates
-    )
+  # browser()
+  result <- functions_to_scenarios(
+    scen.tbl,
+    function_list,
+    probs = probs,
+    spatial = spatial_eff | multiple_times
+  )
 
-  crps <- scoringRules::crps_sample(
-    y = subsample %>% pull(!!observed), # day-ahead response
-    dat = scen.tbl %>%
+  if (spatial_eff | multiple_times) {
+    result <- result %>%
+      mutate(
+        time = id_cols$time,
+        site_name = id_cols$site_name
+      )
+    samp_matrix <- scen.tbl %>%
+      as.matrix()
+    cols_to_join <- c("time", "site_name")
+  } else {
+    result <- result %>%
+      mutate(
+        time = fcst_dates,
+        site_name = NA_character_
+      )
+
+    samp_matrix <- scen.tbl %>%
       as.data.frame() %>%
       select(1:nrow(subsample)) %>% # select 24-hours
       as.matrix() %>%
       t() # transpose so that crps works
+
+    cols_to_join <- "time"
+  }
+
+  crps <- scoringRules::crps_sample(
+    y = subsample %>% pull(!!observed), # day-ahead response
+    dat = samp_matrix
   )
 
   energy.s <- scoringRules::es_sample(
     y = subsample %>% pull(!!observed), # day-ahead response
-    dat = scen.tbl %>%
-      as.data.frame() %>%
-      select(1:nrow(subsample)) %>% # select 24-hours
-      as.matrix() %>%
-      t() # transpose so that crps works
+    dat = samp_matrix
   )
-
+  # browser()
   # variogram distance
   p.var <- c(0.5, 1, 2)
   t.ahead <- c(1, seq(6, 24, by = 6))
-  # variogram <- sapply(
-  #   p.var,
-  #   \(p) scoringRules::vs_sample(
-  #     y = subsample %>%
-  #       slice(t.ahead) %>%
-  #       pull(!!response), # day-ahead response
-  #     dat = scen.tbl %>%
-  #       select(all_of(t.ahead)) %>% # select times
-  #       as.matrix() %>% t(), # transpose so that crps works
-  #     p = p
-  #   ))
+  if (spatial_eff | multiple_times) {
+    observations <- subsample %>%
+      mutate(hour = hour(time)) %>%
+      filter(hour %in% (t.ahead - 1)) %>%
+      pull(!!observed) # day-ahead response
+    var_samp_mat <- scen.tbl %>%
+      slice(which(hour(subsample$time) %in% (t.ahead - 1))) %>% # select times
+      as.matrix()
+  } else {
+    observations <- subsample %>%
+      slice(t.ahead) %>%
+      pull(!!observed) # day-ahead response
+    var_samp_mat <- scen.tbl %>%
+      as.data.frame() %>%
+      select(all_of(t.ahead)) %>% # select times
+      as.matrix() %>%
+      t() # Transpose for vs_sample
+  }
 
   # average of the day
   checks <- subsample %>%
-    left_join(result, by = "time") %>%
+    left_join(result, by = cols_to_join) %>%
     # mutate(coverage = between(.data[[response]],`quantile_2.5%`,`quantile_97.5%`))
     #   summarise(
     #     rmse = sqrt(mean((.data[[response]] - mean)^2)),
@@ -1592,14 +1641,8 @@ stats_hour_model <- function(
       !!!setNames(
         lapply(p.var, function(p) {
           scoringRules::vs_sample(
-            y = subsample %>%
-              slice(t.ahead) %>%
-              pull(!!observed), # day-ahead response
-            dat = scen.tbl %>%
-              as.data.frame() %>%
-              select(all_of(t.ahead)) %>% # select times
-              as.matrix() %>%
-              t(), # Transpose for vs_sample
+            y = observations,
+            dat = var_samp_mat, # Transpose for vs_sample
             p = p
           )
         }),
@@ -1891,6 +1934,7 @@ model.scoring.reliability <- function(
 
   # same calculation by hour
   hour.scores.model <- hour_stats %>%
+    mutate(hour = hour(time)) %>%
     group_by(hour) %>%
     summarise(
       rmse = sqrt(mean((.data[[observed]] - mean)^2)),
@@ -1997,7 +2041,119 @@ model.scoring.reliability <- function(
       model = model.name,
       response = response
     )
-
+  if (!is.null(hour_stats$site_name)) {
+    # same calculation by site
+    site.scores.model <- hour_stats %>%
+      mutate(hour = hour(time)) %>%
+      group_by(site_name) %>%
+      summarise(
+        rmse = sqrt(mean((.data[[observed]] - mean)^2)),
+        across(!!stats.vec, mean),
+        # crps = mean(crps),
+        coverage05 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[1]]],
+          .data[[quant_high[1]]]
+        )),
+        coverage10 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[2]]],
+          .data[[quant_high[2]]]
+        )),
+        coverage15 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[3]]],
+          .data[[quant_high[3]]]
+        )),
+        coverage20 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[4]]],
+          .data[[quant_high[4]]]
+        )),
+        coverage25 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[5]]],
+          .data[[quant_high[5]]]
+        )),
+        coverage30 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[6]]],
+          .data[[quant_high[6]]]
+        )),
+        coverage35 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[7]]],
+          .data[[quant_high[7]]]
+        )),
+        coverage40 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[8]]],
+          .data[[quant_high[8]]]
+        )),
+        coverage45 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[9]]],
+          .data[[quant_high[9]]]
+        )),
+        coverage50 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[10]]],
+          .data[[quant_high[10]]]
+        )),
+        coverage55 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[11]]],
+          .data[[quant_high[11]]]
+        )),
+        coverage60 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[12]]],
+          .data[[quant_high[12]]]
+        )),
+        coverage65 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[13]]],
+          .data[[quant_high[13]]]
+        )),
+        coverage70 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[14]]],
+          .data[[quant_high[14]]]
+        )),
+        coverage75 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[15]]],
+          .data[[quant_high[15]]]
+        )),
+        coverage80 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[16]]],
+          .data[[quant_high[16]]]
+        )),
+        coverage85 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[17]]],
+          .data[[quant_high[17]]]
+        )),
+        coverage90 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[18]]],
+          .data[[quant_high[18]]]
+        )),
+        coverage95 = mean(between(
+          .data[[observed]],
+          .data[[quant_low[19]]],
+          .data[[quant_high[19]]]
+        )),
+        coverage005 = mean(.data[[observed]] < `quantile_0.5%`)
+      ) %>%
+      mutate(
+        model = model.name,
+        response = response
+      )
+  } else {
+    site.scores.model = NULL
+  }
   # get global mean scores
   mean.scores <- daily.scores.model %>%
     # do.call(bind_rows,.) %>%
@@ -2010,8 +2166,8 @@ model.scoring.reliability <- function(
   return(list(
     global = mean.scores,
     day = daily.scores.model,
-    # hour_stats = hour_stats,
-    hour = hour.scores.model
+    hour = hour.scores.model,
+    site = site.scores.model
   ))
 }
 
