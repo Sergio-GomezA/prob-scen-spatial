@@ -3,9 +3,12 @@ require(tidyverse)
 require(parallel)
 require(ggsci)
 require(kableExtra)
+theme_set(theme_bw())
 
 fig_path <- "~/ownCloud-s2441782@datasync.ed.ac.uk/projects/proj2/prob-scenarios-main-doc/fig_clean/"
+main_folder <- "~/Documents/proj2/spatial"
 model_path <- "~/Documents/proj2/spatial/model_objects"
+
 # model list ####
 cpo_scores <- read.csv("summaries/top_stmodel_cpo.csv") %>%
   mutate(
@@ -32,6 +35,11 @@ sorting_models <- data.frame(
   code = ordered.levels
 )
 
+sorted_list <- sorting_models %>%
+  right_join(
+    cpo_scores,
+    by = c("code" = "ofolder")
+  )
 # % effects ####
 
 fnames <- cpo_scores %>%
@@ -149,12 +157,6 @@ ggsave(
 
 # % scenarios 1st day ####
 
-sorted_list <- sorting_models %>%
-  right_join(
-    cpo_scores,
-    by = c("code" = "ofolder")
-  )
-
 ofolder <- sorted_list$code
 date <- "2024-07-05"
 plot_type <- "sim.small"
@@ -220,7 +222,7 @@ data_pit <- lapply(
       n_eta <- length(mod.temp$cpo$pit)
       pit_vals <- mod.temp$cpo$pit
     }
-
+    rm(mod.temp)
     data.frame(
       id = 1:n_eta,
       pit = pit_vals,
@@ -229,14 +231,14 @@ data_pit <- lapply(
   }
 ) %>%
   bind_rows()
-write.csv("summaries/data_pit_st.csv")
-data_pit_eta <- read.csv("data_pit_st.csv")
 
-my_palette_0 <- ggsci::pal_lancet()(9)
+write.csv(data_pit, "summaries/data_pit_st.csv", row.names = FALSE)
+data_pit <- read.csv("data_pit_st.csv")
 
-data_pit_eta %>%
-  mutate(model = factor(model, levels = c("NPB", "NEN"))) %>%
-  filter(version == "Base") %>%
+my_palette_0 <- ggsci::pal_lancet()(6)
+
+data_pit %>%
+  mutate(model = factor(model, levels = ordered.levels)) %>%
   ggplot() +
   geom_abline(aes(slope = 1, intercept = 0), col = "darkgray") +
   stat_ecdf(aes(pit, col = model), na.rm = TRUE, lwd = 0.8) +
@@ -251,12 +253,78 @@ data_pit_eta %>%
   labs(x = "PIT", y = "ECDF")
 
 ggsave(
-  file.path(fig_path, "fig_9a.eps"),
+  file.path(fig_path, "fig_16.eps"),
   width = 3.5,
   height = 3.5
 )
-# % Reliability diagrams
+# % Reliability diagrams ####
+source("aux_funct_ps.R")
+# my_palette
+my_palette <- pal_lancet()(6)
+# scales::show_col(my_palette)
+rel.plot <- plot_reliability(
+  global_scores = score.tbl.gb,
+  model_list = etar_list,
+  my_palette = my_palette,
+  show.fig = FALSE,
+  code_subset = grepv("AR1", ordered.levels, invert = TRUE)
+)
+ordered.levels <- c("NPB", "NPN", "NPG", "PN", "PG", "EN", "NEN", "nonpar.")
 
+plot.data <- score.tbl.gb %>%
+  select(1:29) %>%
+  # names()
+  pivot_longer(
+    cols = coverage05:coverage95,
+    names_to = "level",
+    values_to = "empirical"
+  ) %>%
+  mutate(nominal = (substr(level, 9, 10) %>% as.numeric()) / 100) %>%
+  right_join(
+    cpo_scores %>% select(mod_prefix, ofolder),
+    by = c("model" = "mod_prefix")
+  ) %>%
+  mutate(label = factor(ofolder, levels = ordered.levels))
+
+p <- plot.data %>%
+  ggplot() +
+  geom_abline(aes(slope = 1, intercept = 0), col = "darkgray") +
+  geom_line(
+    aes(
+      nominal,
+      empirical,
+      col = label
+    ),
+    lwd = 0.8
+  ) +
+  labs(
+    col = "",
+    title = "Reliability diagrams",
+    x = "Nominal coverage",
+    y = "Empirical coverage"
+  ) +
+  theme(
+    legend.position = "inside",
+    legend.position.inside = c(.64, .17),
+    plot.title = element_text(size = 10), # Adjust title font size
+    axis.text = element_text(size = 8), # Adjust axis text font size
+    axis.title = element_text(size = 9), # Adjust axis label font size
+    legend.text = element_text(size = 8), # Adjust legend text font size
+    legend.title = element_text(size = 8), # Adjust legend title font size
+    legend.background = element_blank(), # Makes background completely transparent
+    legend.box.background = element_rect(fill = NA, color = NA) # No border
+  ) +
+  guides(col = guide_legend(ncol = 2)) + # Set legend to have 2 columns
+  coord_fixed(ratio = 1, xlim = c(0, 1), ylim = c(0, 1)) +
+  scale_color_manual(values = my_palette) +
+  labs(title = "")
+p
+ggsave(
+  filename = file.path(fig_path, "fig_17.eps"),
+  plot = p,
+  width = 3.5,
+  height = 3.5
+)
 # % Scores
 
 score.tbl <- readRDS("summaries/spatial_scores.rds")
