@@ -120,4 +120,3 @@ score.tbl <- mcmapply(
 )
 
 saveRDS(score.tbl, "summaries/spatial_scores.rds")
-# score.tbl <- readRDS("regime_scores.rds")
