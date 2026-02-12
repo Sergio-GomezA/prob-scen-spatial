@@ -159,6 +159,21 @@ scots_wf_filtered2 %>%
   ggplot() +
   geom_point(aes(x = ws_h, y = norm_potential), alpha = 0.2)
 
+scots_wf_filtered2 <- scots_wf %>%
+  mutate(
+    rel_error0 = ifelse(
+      norm_power_est0 > 0,
+      abs(error0) / norm_power_est0,
+      abs(error0)
+    )
+  ) %>%
+  filter(abs(error0) <= 0.25) %>%
+  # filter(rel_error0 <= 0.2) %>%
+  filter(site_name %in% sample_wf2)
+scots_wf_filtered2 %>%
+  ggplot() +
+  geom_point(aes(x = ws_h, y = norm_potential), alpha = 0.2)
+
 first_time <- min(scots_wf$halfHourEndTime)
 scots_wf_filtered <- scots_wf %>%
   # filter(abs(error0) <= 0.2) %>%
@@ -270,7 +285,6 @@ x <- seq(0, 30, length.out = 100)
 y <- pc5param(x, A, B, C, D, G)
 plot(x, y, type = "l")
 
-
 A <- 1
 B <- -12
 C <- 8
@@ -288,15 +302,17 @@ raw_to_par <- function(par) {
   B2 <- exp(par["B2_raw"]) # always positive
   A <- par["D"] + exp(par["A_raw"]) # ensures A > D
   G <- exp(par["G_raw"]) # ensures G > 0
-  c(
+  res <- c(
     A = A,
     B1 = B1,
     C1 = par["C1"],
     D = par["D"],
     G = G,
-    C2 = par["C2"],
-    B2 = B2
+    B2 = B2,
+    C2 = par["C2"]
   )
+  names(res) <- c("A", "B1", "C1", "D", "G", "B2", "C2")
+  res
 }
 loss <- function(par, x, y) {
   # browser()
@@ -310,7 +326,10 @@ loss <- function(par, x, y) {
     C2 = par["C2"],
     B2_raw = par["B2_raw"]
   )
-  sum((y - y_hat)^2)
+  prop_cutout <- sum(x > 20) / length(x)
+  # print(1 / prop_cutout)
+  w <- ifelse(x > 20, 1 / prop_cutout, 1)
+  sum(w * (y - y_hat)^2)
 }
 start <- c(
   A_raw = log(max(y)), # log-scale
@@ -321,27 +340,96 @@ start <- c(
   C2 = quantile(x, 0.999, names = FALSE),
   B2_raw = log(24)
 )
-loss(start, x, y)
+
+ws_vec <- pmax(0, scots_wf_filtered2$ws_h)
+power_vec <- scots_wf_filtered2$norm_potential
+
+loss(start, ws_vec, power_vec)
 
 fit <- optim(
   par = start,
   fn = loss,
-  x = x,
-  y = y,
+  x = ws_vec,
+  y = power_vec,
   method = "L-BFGS-B",
   control = list(maxit = 500)
 )
 fit$convergence
 fit$par
 
-
 solution1 <- raw_to_par(fit$par)
 
 data.frame(estimate = solution1) %>%
-  write.csv("data/pc_7pars_wfsamp_24.csv", row.names = TRUE)
+  write.csv("data/pc_7pars_wfsamp_24b.csv", row.names = TRUE)
+
+get_inflection_points(solution1)
+
+get_inflection_points <- function(par, x_range = c(0.01, 50)) {
+  A <- par["A"]
+  B1 <- par["B1"]
+  C1 <- par["C1"]
+  D <- par["D"]
+  G <- par["G"]
+  C2 <- par["C2"]
+  B2 <- par["B2"]
+
+  pc <- function(x) {
+    D +
+      (A - D) /
+        (1 + (x / C1)^B1)^G /
+        (1 + (x / C2)^B2)^G
+  }
+
+  # numerical second derivative
+  d2 <- function(x) {
+    h <- 1e-4
+    (pc(x + h) - 2 * pc(x) + pc(x - h)) / h^2
+  }
+
+  # grid to locate sign changes
+  grid <- seq(x_range[1], x_range[2], length.out = 2000)
+  vals <- sapply(grid, d2)
+
+  idx <- which(diff(sign(vals)) != 0)
+
+  if (length(idx) == 0) {
+    return(rep(NA, 2))
+  }
+
+  roots <- sapply(idx, function(i) {
+    uniroot(d2, c(grid[i], grid[i + 1]))$root
+  })
+
+  roots <- sort(roots)
+
+  # ensure always length 2
+  if (length(roots) == 1) {
+    roots <- c(roots, NA)
+  }
+  if (length(roots) > 2) {
+    roots <- roots[1:2]
+  }
+
+  names(roots) <- c("ramp_up", "cut_out")
+  roots
+}
+
+infl_approx <- function(par) {
+  B1 <- par["B1"]
+  C1 <- par["C1"]
+  B2 <- par["B2"]
+  C2 <- par["C2"]
+  G <- par["G"]
+
+  x1 <- C1 * ((B1 - 1) / (B1 * G + 1))^(1 / B1)
+  x2 <- C2 * ((B2 - 1) / (B2 * G + 1))^(1 / B2)
+
+  c(ramp_up = x1, cut_out = x2)
+}
+infl_approx(solution1)
 
 
-x_seq <- seq(0, 30, length.out = 200)
+x_seq <- seq(0, 35, length.out = 200)
 y_seq <- pc7param_r(
   x_seq,
   A_raw = fit$par["A_raw"],
@@ -352,6 +440,7 @@ y_seq <- pc7param_r(
   C2 = fit$par["C2"],
   B2_raw = fit$par["B2_raw"]
 )
+plot(x_seq, y_seq)
 
 scots_wf_filtered2 %>%
   ggplot() +

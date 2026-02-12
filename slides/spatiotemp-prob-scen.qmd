@@ -5,7 +5,7 @@ author:
 institute:
    - $^1$School of Mathematics, University of Edinburgh
 institute-short: "UoE"
-date: "2026-02-04"
+date: "2026-02-12"
 format: 
   beamer:
     theme: Rochester
@@ -15,7 +15,7 @@ format:
     toc: true
     slide-level: 2
     split-bib: true
-    output-file: "st-prob-scen_slides_04-02-04.pdf"
+    output-file: "st-prob-scen_slides_26-02-12.pdf"
 header-includes:
   - \usepackage{graphicx}
 fontsize: 12pt
@@ -491,7 +491,7 @@ data.frame(
 Adding extra parameters we can model de decay after cut-off:
 
 \begin{equation*}
-  P(u) = D+ \frac{A-D}{(1+(u/C_1)^B_1)^G(1+(u/C_2)^B_2)^G} 
+  P(u) = D+ \frac{A-D}{(1+(u/C_1)^{B_1})^G(1+(u/C_2)^{B_2})^G} 
 \end{equation*}
 where: $A$ and $D$ are the upper and lower asymptotes, $C_1$ is the first inflection point, $C_2$ is related to the cut-off, $B_1$ is related to the slope at inflection point, $B_2$ to the slope during cut-off, and $G$ controls the asymmetry.
 
@@ -552,7 +552,7 @@ data.frame(
 \centering
 Estimates from data
 ```{r}
-solution1 <- read.csv(file.path(pre_path,"data/pc_7pars_wfsamp_24.csv")) %>%
+solution1 <- read.csv(file.path(pre_path,"data/pc_7pars_wfsamp_24b.csv")) %>%
   rename(par = X)
 solution1 %>%
   kable(digits = 2, format = "latex") %>%
@@ -564,7 +564,7 @@ solution1 %>%
 \centering
 \small Data and power curve estimate
 
-\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scot_wfsamp_24_pc-est.png}
+\includegraphics[width=\linewidth,height=5cm,keepaspectratio]{../fig/scottish_wfsamp_24_pc-est.png}
 :::
 
 :::
