@@ -8,7 +8,16 @@ theme_set(theme_bw())
 fig_path <- "~/ownCloud-s2441782@datasync.ed.ac.uk/projects/proj2/prob-scenarios-main-doc/fig_clean/"
 main_folder <- "~/Documents/proj2/spatial"
 model_path <- "~/Documents/proj2/spatial/model_objects"
+list.files(model_path)
 
+mod.temp <- readRDS(
+  file.path(
+    model_path,
+    "r_err.cf_f_gaussian_eta_feat_ws.w_group-ar1g-etaderiv.rds"
+  )
+)
+
+mod.temp$.args$formula
 # model list ####
 cpo_scores <- read.csv("summaries/top_stmodel_cpo.csv") %>%
   mutate(

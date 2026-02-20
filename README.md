@@ -48,3 +48,27 @@ Converting Point Forecasts to probabilistic wind power scenarios for a set of wi
 
   Add data section
   Explain spatial model
+
+
+- [ ] Fix PR 
+  - [ ] No space component requires adjustments in AR or PR components
+  - [ ] Rerun 1 day
+  - [ ] Look at samples
+  - [ ] Score
+  - [ ] Update figures and tables
+
+- [ ] Spatial OOS
+- [ ] Smooth copy
+- [ ]1D SPDE / Splines for random effects
+- [ ]Different Regime definition
+- [ ]Effects and hyperparameter plots
+- [ ]Summary tables for coefficients and hyperparameters
+- [ ]Enhance UK data section
+- [ ]Update results and conclusions section for ST model
+
+error model
+structure
+beyond RMSE
+uncertainty
+
+2/3 wind farm in operation

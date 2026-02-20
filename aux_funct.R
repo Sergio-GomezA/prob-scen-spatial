@@ -1677,18 +1677,17 @@ plot.hyper.dens <- function(
   print(p.dens)
 }
 
-
 pc5param <- function(x, A, B, C, D, G) {
   D + (A - D) / (1 + (x / C)^B)^G
 }
-pc6param <- function(x, A, B, C, D, G, C2, B2 = -B) {
+pc6param <- function(x, A, B, C, D, G, B2 = -B, C2) {
   ifelse(
     x < (C + C2) / 2,
     D + (A - D) / (1 + (x / C)^B)^G,
     D + (A - D) / (1 + (x / C2)^B2)^G
   )
 }
-pc7param_r <- function(x, A_raw, B1_raw, C1, D, G_raw, C2, B2_raw) {
+pc7param_r <- function(x, A_raw, B1_raw, C1, D, G_raw, B2_raw, C2) {
   B1 <- -exp(B1_raw) # always negative
   B2 <- exp(B2_raw) # always positive
   A <- D + exp(A_raw) # ensures A > D
@@ -1699,6 +1698,23 @@ pc7param_r <- function(x, A_raw, B1_raw, C1, D, G_raw, C2, B2_raw) {
       (1 + (x / C1)^B1)^G /
       (1 + (x / C2)^B2)^G
 }
+# raw_to_par <- function(par) {
+#   B1 <- -exp(par["B1_raw"]) # always negative
+#   B2 <- exp(par["B2_raw"]) # always positive
+#   A <- par["D"] + exp(par["A_raw"]) # ensures A > D
+#   G <- exp(par["G_raw"]) # ensures G > 0
+#   res <- c(
+#     A = A,
+#     B1 = B1,
+#     C1 = par["C1"],
+#     D = par["D"],
+#     G = G,
+#     B2 = B2,
+#     C2 = par["C2"]
+#   )
+#   names(res) <- c("A", "B1", "C1", "D", "G", "B2", "C2")
+#   res
+# }
 raw_to_par <- function(par) {
   B1 <- -exp(unname(par["B1_raw"]))
   B2 <- exp(unname(par["B2_raw"]))
@@ -1711,7 +1727,105 @@ raw_to_par <- function(par) {
     C1 = unname(par["C1"]),
     D = unname(par["D"]),
     G = G,
-    C2 = unname(par["C2"]),
-    B2 = B2
+    B2 = B2,
+    C2 = unname(par["C2"])
   )
+}
+loss <- function(par, x, y, p = 1, threshold = 22) {
+  # browser()
+  y_hat <- pc7param_r(
+    x,
+    A = par["A_raw"],
+    B1_raw = par["B1_raw"],
+    C1 = par["C1"],
+    D = par["D"],
+    G_raw = par["G_raw"],
+    B2_raw = par["B2_raw"],
+    C2 = par["C2"]
+  )
+  prop_cutout <- sum(x > threshold) / length(x)
+  # print(1 / prop_cutout)
+  w <- ifelse(x > threshold, 1 / prop_cutout^p, 1)
+  sum(w * (y - y_hat)^2)
+}
+
+loss_cutout <- function(par, x, y, p = 1, threshold = 20) {
+  # browser()
+  y_hat <- pc7param_r(
+    x,
+    A = par["A_raw"],
+    B1_raw = par["B1_raw"],
+    C1 = par["C1"],
+    D = par["D"],
+    G_raw = par["G_raw"],
+    B2_raw = par["B2_raw"],
+    C2 = par["C2"]
+  )
+  prop_cutout <- sum(x > threshold) / length(x)
+  # print(1 / prop_cutout)
+  w <- ifelse(x > threshold, 1 / prop_cutout^p, 0)
+  sum(w * (y - y_hat)^2)
+}
+
+get_inflection_points <- function(par, x_range = c(0.01, 50)) {
+  A <- par["A"]
+  B1 <- par["B1"]
+  C1 <- par["C1"]
+  D <- par["D"]
+  G <- par["G"]
+  B2 <- par["B2"]
+  C2 <- par["C2"]
+
+  pc <- function(x) {
+    D +
+      (A - D) /
+        (1 + (x / C1)^B1)^G /
+        (1 + (x / C2)^B2)^G
+  }
+
+  # numerical second derivative
+  d2 <- function(x) {
+    h <- 1e-4
+    (pc(x + h) - 2 * pc(x) + pc(x - h)) / h^2
+  }
+
+  # grid to locate sign changes
+  grid <- seq(x_range[1], x_range[2], length.out = 2000)
+  vals <- sapply(grid, d2)
+
+  idx <- which(diff(sign(vals)) != 0)
+
+  if (length(idx) == 0) {
+    return(rep(NA, 2))
+  }
+
+  roots <- sapply(idx, function(i) {
+    uniroot(d2, c(grid[i], grid[i + 1]))$root
+  })
+
+  roots <- sort(roots)
+
+  # ensure always length 2
+  if (length(roots) == 1) {
+    roots <- c(roots, NA)
+  }
+  if (length(roots) > 2) {
+    roots <- roots[1:2]
+  }
+
+  names(roots) <- c("ramp_up", "cut_out")
+  roots
+}
+
+infl_approx <- function(par) {
+  B1 <- par["B1"]
+  C1 <- par["C1"]
+  B2 <- par["B2"]
+  C2 <- par["C2"]
+  G <- par["G"]
+
+  x1 <- C1 * ((B1 - 1) / (B1 * G + 1))^(1 / B1)
+  x2 <- C2 * ((B2 - 1) / (B2 * G + 1))^(1 / B2)
+
+  c(ramp_up = x1, cut_out = x2)
 }
