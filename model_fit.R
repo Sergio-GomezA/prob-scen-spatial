@@ -236,7 +236,7 @@ features_vec <- model_list[model_id, 7] %>%
   unname() #%>%
 # gsub("ar2", "ar1g", .)
 # gsub("ar2", "matern-ar1", .)
-features_vec <- features_vec[-3]
+features_vec <- features_vec[-4]
 save_stack <- ifelse(any(grepl("matern", features_vec)), TRUE, FALSE)
 cat(
   sprintf(
