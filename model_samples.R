@@ -16,13 +16,14 @@ local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 
 # job id is day index to get samples
 # Defaults if no argument is provided
-day_id <- 25
+day_id <- 1
 window_id <- 1
 restart <- TRUE
 # mod.file.name <- "2503_us_npow_eta0.rds"
 mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
 mod.file.name <- "r_actuals.cf_f_beta_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
 mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-ar1g-etaderiv.rds"
+mod.file.name <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"
 ofolder <- case_when(
   grepl("err.cf", mod.file.name) &
     grepl("etaderiv", mod.file.name) &
@@ -205,9 +206,13 @@ train_data <- history_window(
   units = units,
   mask = TRUE
 ) %>%
+  arrange(site_name, time) %>%
   mutate(
-    site_id = as.integer(factor(site_id))
+    eta.1 = 1:n(),
   ) %>%
+  group_by(site_name) %>%
+  mutate(eta.2 = lag(eta.1, default = NA)) %>%
+  ungroup() %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
   mutate(
     lon = st_coordinates(.)[, 1],

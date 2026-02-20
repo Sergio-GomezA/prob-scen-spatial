@@ -10,6 +10,34 @@ theme_set(theme_bw())
 source("aux_funct_ps.R")
 model_fname <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.rds"
 model_path <- "~/Documents/proj2/spatial/model_objects/"
+
+
+# View model formulas
+mod_fnames <- list.files(model_path, pattern = "\\.rds$")
+
+mod_formulas <- lapply(
+  mod_fnames,
+  \(file) {
+    readRDS(
+      file.path(model_path, file)
+    )$.args$formula
+  }
+)
+
+mod_formulas[[1]] %>% format() %>% cat(sep = "\n")
+formulas_1st_batch <- data.frame(
+  file = mod_fnames,
+  path = model_path,
+  formula = sapply(mod_formulas, \(formula) {
+    format(formula) %>% paste(collapse = "\n")
+  })
+)
+formulas_1st_batch %>%
+  write.csv(
+    "summaries/model_formulas_v1.csv",
+    row.names = FALSE
+  )
+
 mod.temp <- readRDS(file.path(model_path, model_fname))
 
 stack_fname <- paste0("misc/stack_", model_fname)

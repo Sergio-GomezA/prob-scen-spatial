@@ -1,0 +1,91 @@
+"file","path","formula"
+"r_actuals.cf_f_beta_eta_feat_fcst_group-ar1g-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_actuals.cf ~ f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(t, model = ""ar1"", hyper = NULL, group = site_id, values = sort(unique(t))) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_actuals.cf_f_beta_eta_feat_fcst_group-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_actuals.cf ~ f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_actuals.cf_f_beta_eta_feat_fcst_group-matern-ar1-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_actuals.cf ~ f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(spatial, model = wf.spde, group = st.group, control.group = list(model = ""ar1"")) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_actuals.cf_f_beta_eta_feat_ws.w_group-ar1g-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_actuals.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(t, model = ""ar1"", hyper = NULL, group = site_id, values = sort(unique(t))) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_actuals.cf_f_beta_eta_feat_ws.w_group-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_actuals.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_actuals.cf_f_beta_eta_feat_ws.w_group-fcst_group-matern-ar1-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_actuals.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + f(spatial, 
+    model = wf.spde, group = st.group, control.group = list(model = ""ar1"")) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_actuals.cf_f_beta_eta_feat_ws.w_group-matern-ar1-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_actuals.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(spatial, model = wf.spde, group = st.group, control.group = list(model = ""ar1"")) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_actuals.cf_f_beta_fd_feat_fcst_group-matern-ar1.rds","~/Documents/proj2/spatial/model_objects/","actuals.cf ~ f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(spatial, model = wf.spde, group = st.group, control.group = list(model = ""ar1""))"
+"r_actuals.cf_f_beta_fd_feat_ws.w_group-matern-ar1.rds","~/Documents/proj2/spatial/model_objects/","actuals.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(spatial, model = wf.spde, group = st.group, control.group = list(model = ""ar1""))"
+"r_err.cf_f_gaussian_eta_feat_fcst_group-ar1g-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_err.cf ~ f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(t, model = ""ar1"", hyper = NULL, group = site_id, values = sort(unique(t))) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_err.cf_f_gaussian_eta_feat_fcst_group-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_err.cf ~ f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_err.cf_f_gaussian_eta_feat_fcst_group-matern-ar1-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_err.cf ~ f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(spatial, model = wf.spde, group = st.group, control.group = list(model = ""ar1"")) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_err.cf_f_gaussian_eta_feat_ws.w_group-ar1g-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_err.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(t, model = ""ar1"", hyper = NULL, group = site_id, values = sort(unique(t))) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_err.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_err.cf_f_gaussian_eta_feat_ws.w_group-fcst_group-matern-ar1-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_err.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + f(spatial, 
+    model = wf.spde, group = st.group, control.group = list(model = ""ar1"")) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.rds","~/Documents/proj2/spatial/model_objects/","Y_err.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + 
+    f(spatial, model = wf.spde, group = st.group, control.group = list(model = ""ar1"")) + 
+    f(eta, w, model = ""iid"", hyper = list(prec = list(initial = -15, 
+        fixed = TRUE))) + f(eta.1, copy = ""eta"", hyper = list(beta = list(initial = -0.1, 
+    fixed = FALSE)), range = c(-0.4, 0.4)) + f(eta.2, w2, copy = ""eta"", 
+    same.as = ""eta.1"")"
+"r_err.cf_f_gaussian_fd_feat_fcst_group-matern-ar1.rds","~/Documents/proj2/spatial/model_objects/","err.cf ~ f(fcst_group, model = ""rw2"", hyper = hyper.rw2) + f(spatial, 
+    model = wf.spde, group = st.group, control.group = list(model = ""ar1""))"
+"r_err.cf_f_gaussian_fd_feat_ws.w_group-matern-ar1.rds","~/Documents/proj2/spatial/model_objects/","err.cf ~ f(ws.w_group, model = ""rw2"", hyper = hyper.rw2) + f(spatial, 
+    model = wf.spde, group = st.group, control.group = list(model = ""ar1""))"

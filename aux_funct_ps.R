@@ -999,6 +999,8 @@ fit_a_date <- function(
 
   reffects_vec <- inla.object$summary.random %>% names()
 
+  spatial <- any(grepl("spatial", reffects_vec))
+
   # adjustments in case of etaderiv
   if (length(inla.object$.args$family) > 1) {
     n <- nrow(model_data)
@@ -1025,8 +1027,8 @@ fit_a_date <- function(
         site_id = c(site_id, rep(NA, n)),
         eta = c(1:n, 1:n), # eta indices
         w = c(rep(-1, n), rep(1, n)), # weights for eta effect: -1 to copy lin.predictor, 1 to be part of likelihood
-        eta.1 = c(rep(NA, n), 1:n), # indices for positive part of derivative
-        eta.2 = c(rep(NA, n), NA, 1:(n - 1)), # shifted indices for negative part of derivative
+        eta.1 = c(rep(NA, n), ifelse(spatial, eta.1, 1:n)), # indices for positive part of derivative
+        eta.2 = c(rep(NA, n), ifelse(spatial, eta.2, c(NA, 1:(n - 1)))), # shifted indices for negative part of derivative
         w2 = c(rep(0, n), rep(-1, n))
       ) # weights for negative part of derivative
     )
@@ -1037,7 +1039,7 @@ fit_a_date <- function(
       c(rep(NA, n), model_data[[updated_response]])
     )
 
-    if (any(grepl("spatial", reffects_vec))) {
+    if (spatial) {
       # browser()
       st.group = day.data$time_idx
       A1 <- inla.spde.make.A(
@@ -1121,7 +1123,7 @@ fit_a_date <- function(
       control.link = list(model = "default")
     )
     # browser()
-    if (any(grepl("spatial", reffects_vec))) {
+    if (spatial) {
       st.group = model_data$time_idx
       A1 <- inla.spde.make.A(
         mesh = mesh,
@@ -1171,7 +1173,7 @@ fit_a_date <- function(
     compute = inla.object$.args$control.predictor$compute,
     link = 1
   )
-  if (any(grepl("spatial", reffects_vec))) {
+  if (spatial) {
     control_pred <- c(control_pred, A = inla.stack.A(wf.stack))
     if (save_stack) {
       spatial_model <- ifelse(
@@ -2884,6 +2886,8 @@ fit_inla_model <- function(
       )
   }
 
+  spatial <- any(grepl("matern", features_vec))
+
   control_pred <- list(compute = TRUE, link = 1)
 
   # restructure data for eta deriv type
@@ -2914,8 +2918,8 @@ fit_inla_model <- function(
         site_id = c(site_id, rep(NA, n)),
         eta = c(1:n, 1:n), # eta indices
         w = c(rep(-1, n), rep(1, n)), # weights for eta effect: -1 to copy lin.predictor, 1 to be part of likelihood
-        eta.1 = c(rep(NA, n), 1:n), # indices for positive part of derivative
-        eta.2 = c(rep(NA, n), NA, 1:(n - 1)), # shifted indices for negative part of derivative
+        eta.1 = c(rep(NA, n), ifelse(spatial, eta.1, 1:n)), # indices for positive part of derivative
+        eta.2 = c(rep(NA, n), ifelse(spatial, eta.2, c(NA, 1:(n - 1)))), # shifted indices for negative part of derivative
         w2 = c(rep(0, n), rep(-1, n))
       ) # weights for negative part of derivative
     )
@@ -2938,7 +2942,7 @@ fit_inla_model <- function(
       ) # 2nd beta lik non-fixed precision
     )
 
-    if (any(grepl("matern", features_vec))) {
+    if (spatial) {
       # browser()
       st.group = data$time_idx
       A1 <- inla.spde.make.A(
@@ -2998,7 +3002,7 @@ fit_inla_model <- function(
       control.link = list(model = "default")
     )
     # browser()
-    if (any(grepl("matern", features_vec))) {
+    if (spatial) {
       st.group = data0$time_idx
       A1 <- inla.spde.make.A(
         mesh = mesh,
@@ -3055,7 +3059,7 @@ fit_inla_model <- function(
   }
   # browser()
   # matern covariance options
-  if (any(grepl("matern", features_vec))) {
+  if (spatial) {
     control_pred <- c(control_pred, A = inla.stack.A(wf.stack))
     if (save_stack) {
       stack_fname <- sprintf(

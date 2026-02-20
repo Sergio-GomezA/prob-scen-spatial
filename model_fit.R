@@ -7,7 +7,7 @@ local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 args <- commandArgs(trailingOnly = TRUE)
 # browser()
 # Assign default values
-model_id <- 4
+model_id <- 1
 model_list_file <- "data/model_list_spatial.parquet"
 ofolder <- "etaderiv"
 save_model <- TRUE
@@ -137,9 +137,13 @@ data_masked <- history_window(
   units = wind_units,
   mask = mask_opt
 ) %>%
+  arrange(site_name, time) %>%
   mutate(
-    site_id = as.integer(factor(site_id))
+    eta.1 = 1:n(),
   ) %>%
+  group_by(site_name) %>%
+  mutate(eta.2 = lag(eta.1, default = NA)) %>%
+  ungroup() %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
   mutate(
     lon = st_coordinates(.)[, 1],
