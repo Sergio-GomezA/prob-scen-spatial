@@ -387,7 +387,7 @@ sim.obj <- simulation.plots.inla2(
   show.fig = TRUE,
   save.fig = save.fig,
   fig.ext = ".png",
-  n.sim.plot = c(5, 30),
+  n.sim.plot = c(5, 10),
   path = "fig",
   run.name = paste0(prefix, "_t", t1 + hours(1)),
   skip.plots = FALSE,
