@@ -3063,14 +3063,15 @@ fit_inla_model <- function(
     control_pred <- c(control_pred, A = inla.stack.A(wf.stack))
     if (save_stack) {
       stack_fname <- sprintf(
-        "misc/stack_r_%s_f_%s_%s_feat_%s.rds",
+        "misc/stack_r_%s_f_%s_%s_feat_%s_t%s.rds",
         model_type$response,
         model_type$family,
         model_type$fderiv,
         # model list
         # sub("^model_(.*)\\.rds$", "\\1", model_list_file),
         # id
-        paste(features_vec, collapse = "-")
+        paste(features_vec, collapse = "-"),
+        format(t1 + hours(1), "%y-%m-%d")
       )
       saveRDS(wf.stack, stack_fname)
     }

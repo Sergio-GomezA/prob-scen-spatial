@@ -371,11 +371,12 @@ n.samples <- 1000
 show.fig <- TRUE
 save.fig <- TRUE
 train_data <- data_masked
+mod.file.name <- prefix
 sim.obj <- simulation.plots.inla2(
   inla.model = mod_temp,
   data = data.scaled,
   response = mod_temp$.args$formula[[2]] %>% as.character(),
-  t1 = t1,
+  t1 = t1 + hours(1),
   quSeq = quantile.seq,
   family = mod_temp$.args$family %>% tail(1),
   resp.lab = "Wind generation",
