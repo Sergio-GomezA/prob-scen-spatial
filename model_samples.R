@@ -23,7 +23,7 @@ restart <- TRUE
 mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
 mod.file.name <- "r_actuals.cf_f_beta_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
 mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-ar1g-etaderiv.rds"
-mod.file.name <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"
+# mod.file.name <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"
 ofolder <- case_when(
   grepl("err.cf", mod.file.name) &
     grepl("etaderiv", mod.file.name) &
@@ -122,7 +122,7 @@ window_lengths <- c(7, 14, 21, 30, 2)
 window_units <- c(rep("days", 4), "months")
 
 # first day to forecast
-t0 <- as.POSIXct("2024-07-01", tz = "UTC")
+t0 <- as.POSIXct("2024-06-30 23:00:00", tz = "UTC")
 
 # days to run
 time_seq <- seq(
@@ -207,9 +207,8 @@ train_data <- history_window(
   mask = TRUE
 ) %>%
   arrange(site_name, time) %>%
-  mutate(
-    eta.1 = 1:n(),
-  ) %>%
+  mutate(site_id_orig = site_id, site_id = as.integer(as.factor(site_name))) %>%
+  mutate(eta.1 = 1:n()) %>%
   group_by(site_name) %>%
   mutate(eta.2 = lag(eta.1, default = NA)) %>%
   ungroup() %>%
@@ -375,7 +374,8 @@ sim.obj <- simulation.plots.inla2(
   resp.lab = resp.lab,
   # ylim = c(0,1.02),
   nsamp = n.samples,
-  show.fig = show.fig,
+  # show.fig = show.fig,
+  show.fig = TRUE,
   save.fig = save.fig,
   fig.ext = ".png",
   path = path.fig,

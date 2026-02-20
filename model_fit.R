@@ -7,7 +7,7 @@ local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 args <- commandArgs(trailingOnly = TRUE)
 # browser()
 # Assign default values
-model_id <- 1
+model_id <- 5
 model_list_file <- "data/model_list_spatial.parquet"
 ofolder <- "etaderiv"
 save_model <- TRUE
@@ -138,11 +138,10 @@ data_masked <- history_window(
   mask = mask_opt
 ) %>%
   arrange(site_name, time) %>%
-  mutate(
-    eta.1 = 1:n(),
-  ) %>%
+  mutate(site_id_orig = site_id, site_id = as.integer(as.factor(site_name))) %>%
+  mutate(eta.1 = 1:n(), hour = hour(time)) %>%
   group_by(site_name) %>%
-  mutate(eta.2 = lag(eta.1, default = NA)) %>%
+  mutate(eta.2 = lag(eta.1, 3, default = NA)) %>%
   ungroup() %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
   mutate(
@@ -237,7 +236,7 @@ features_vec <- model_list[model_id, 7] %>%
   unname() #%>%
 # gsub("ar2", "ar1g", .)
 # gsub("ar2", "matern-ar1", .)
-# features_vec <- features_vec[-3]
+features_vec <- features_vec[-3]
 save_stack <- ifelse(any(grepl("matern", features_vec)), TRUE, FALSE)
 cat(
   sprintf(
@@ -249,7 +248,7 @@ cat(
 
 
 ########## Model fitting ######################################################
-# source("aux_funct_ps.R")
+source("aux_funct_ps.R")
 # undebug(history_window)
 # debug(fit_inla_model)
 # initial_values <- NULL
@@ -326,6 +325,74 @@ fname <- file.path(
 write.csv(result, fname, row.names = FALSE)
 # print message
 cat(sprintf("Saving output in file %s\n", fname))
+
+
+########## Plotting effects and parameters ###################################
+
+# Effects
+effects.list <- names(mod_temp$summary.random)
+excluded <- c("t", "eta", "eta.1", "eta.2")
+
+eff_names <- effects.list[!effects.list %in% excluded]
+
+t <- lapply(
+  eff_names,
+  \(effect) plot.effects(mod_temp, effect, show.fig = TRUE)
+)
+names(t) <- eff_names
+
+prefix <- model_fname %>% sub("\\.rds", "", .)
+for (effect in eff_names) {
+  ggsave(
+    sprintf("fig/eff_%s_%s.pdf", effect, prefix),
+    plot = t[[effect]]$fig,
+    width = 3.5,
+    height = 3
+  )
+}
+
+# hyperparameters
+phyper <- plot.hyper.dens(mod_temp, show.fig = TRUE)
+ggsave(
+  sprintf("fig/hyper_mod_%s.pdf", prefix),
+  phyper,
+  width = 6,
+  height = 6
+)
+# samples
+set.seed(1)
+source("aux_funct_ps.R")
+# debug(simulation.plots.inla2)
+# debug(plot_actuals_model)
+h_predict <- 24
+
+quantile.seq <- c(0.025, 0.5, 0.975)
+n.samples <- 1000
+show.fig <- TRUE
+save.fig <- TRUE
+train_data <- data_masked
+sim.obj <- simulation.plots.inla2(
+  inla.model = mod_temp,
+  data = data.scaled,
+  response = mod_temp$.args$formula[[2]] %>% as.character(),
+  t1 = t1,
+  quSeq = quantile.seq,
+  family = mod_temp$.args$family %>% tail(1),
+  resp.lab = "Wind generation",
+  # ylim = c(0,1.02),
+  nsamp = n.samples,
+  # show.fig = show.fig,
+  show.fig = TRUE,
+  save.fig = save.fig,
+  fig.ext = ".png",
+  n.sim.plot = c(5, 30),
+  path = "fig",
+  run.name = paste0(prefix, "_t", t1 + hours(1)),
+  skip.plots = FALSE,
+  inla_seed = 1
+  # sample.df = sample.test$samples,
+  # legend.position = "bottom"
+)
 
 mend_t <- Sys.time()
 run_time <- difftime(mend_t, mstart_t)

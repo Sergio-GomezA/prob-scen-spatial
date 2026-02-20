@@ -1027,8 +1027,8 @@ fit_a_date <- function(
         site_id = c(site_id, rep(NA, n)),
         eta = c(1:n, 1:n), # eta indices
         w = c(rep(-1, n), rep(1, n)), # weights for eta effect: -1 to copy lin.predictor, 1 to be part of likelihood
-        eta.1 = c(rep(NA, n), ifelse(spatial, eta.1, 1:n)), # indices for positive part of derivative
-        eta.2 = c(rep(NA, n), ifelse(spatial, eta.2, c(NA, 1:(n - 1)))), # shifted indices for negative part of derivative
+        eta.1 = c(rep(NA, n), eta.1), # indices for positive part of derivative
+        eta.2 = c(rep(NA, n), eta.2), # shifted indices for negative part of derivative
         w2 = c(rep(0, n), rep(-1, n))
       ) # weights for negative part of derivative
     )
@@ -2918,8 +2918,8 @@ fit_inla_model <- function(
         site_id = c(site_id, rep(NA, n)),
         eta = c(1:n, 1:n), # eta indices
         w = c(rep(-1, n), rep(1, n)), # weights for eta effect: -1 to copy lin.predictor, 1 to be part of likelihood
-        eta.1 = c(rep(NA, n), ifelse(spatial, eta.1, 1:n)), # indices for positive part of derivative
-        eta.2 = c(rep(NA, n), ifelse(spatial, eta.2, c(NA, 1:(n - 1)))), # shifted indices for negative part of derivative
+        eta.1 = c(rep(NA, n), eta.1), # indices for positive part of derivative
+        eta.2 = c(rep(NA, n), eta.2), # shifted indices for negative part of derivative
         w2 = c(rep(0, n), rep(-1, n))
       ) # weights for negative part of derivative
     )
