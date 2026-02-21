@@ -315,7 +315,7 @@ if (!dir.exists(path_out)) {
 }
 
 fname <- file.path(
-  path_out,
+  "var_scores",
   sprintf(
     "var_scores_r_%s_f_%s_%s_feat_%s.csv",
     model_type$response,

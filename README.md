@@ -59,12 +59,13 @@ Converting Point Forecasts to probabilistic wind power scenarios for a set of wi
 
 - [ ] Spatial OOS
 - [ ] Smooth copy
-- [ ]1D SPDE / Splines for random effects
-- [ ]Different Regime definition
-- [ ]Effects and hyperparameter plots
-- [ ]Summary tables for coefficients and hyperparameters
-- [ ]Enhance UK data section
-- [ ]Update results and conclusions section for ST model
+- [ ] 1D SPDE / Splines for random effects
+- [ ] Spatial regime switching model
+- [ ] Different Regime definition
+- [ ] Effects and hyperparameter plots
+- [ ] Summary tables for coefficients and hyperparameters
+- [ ] Enhance UK data section
+- [ ] Update results and conclusions section for ST model
 
 error model
 structure

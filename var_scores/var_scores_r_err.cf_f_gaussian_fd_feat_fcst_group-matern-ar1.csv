@@ -1,0 +1,2 @@
+"waic","mean_log_cpo","mean_log_gcpo","Log.precision.for.the.Gaussian.observations","Log.precision.for.fcst_group","log.Range..for.spatial","log.Stdev..for.spatial","Group.rho_intern.for.spatial","tags"
+-12575.2475051654,1.05621066607324,0.963265177631932,5.23427771179657,0.318564418010971,2.424724511367,-0.734508498497265,4.60607241793932,"Log precision for the Gaussian observations, Log precision for fcst_group, log(Range) for spatial, log(Stdev) for spatial, Group rho_intern for spatial"

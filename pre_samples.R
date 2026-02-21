@@ -18,7 +18,11 @@
 #   gg(pcor)
 require(tidyverse)
 require(data.table)
-model_fnames <- list.files("~/Documents/proj2/spatial/model_objects")
+model_fnames <- list.files(
+  "~/Documents/proj2/spatial/model_objects",
+  # pattern = "\\.rds$"
+  pattern = "ar2|matern-ar1-etaderiv"
+)
 
 test_df <- data.frame(
   mod.file.name = model_fnames
@@ -34,9 +38,19 @@ test_df <- data.frame(
       grepl("err.cf", mod.file.name) &
         grepl("etaderiv", mod.file.name) &
         grepl("ar1g", mod.file.name) ~ "AR1-PR-NEN",
+      grepl("err.cf", mod.file.name) &
+        grepl("etaderiv", mod.file.name) &
+        grepl("ar2g", mod.file.name) ~ "AR2-PR-NEN",
+      grepl("err.cf", mod.file.name) &
+        grepl("ar2g", mod.file.name) ~ "AR2-NEN",
       grepl("actuals.cf", mod.file.name) &
         grepl("etaderiv", mod.file.name) &
         grepl("ar1g", mod.file.name) ~ "AR1-PR-NPB",
+      grepl("actuals.cf", mod.file.name) &
+        grepl("etaderiv", mod.file.name) &
+        grepl("ar2g", mod.file.name) ~ "AR2-PR-NPB",
+      grepl("actuals.cf", mod.file.name) &
+        grepl("ar2g", mod.file.name) ~ "AR2-NPB",
       grepl("err.cf", mod.file.name) &
         grepl("matern", mod.file.name) ~ "ST-NEN",
       grepl("actuals.cf", mod.file.name) &
@@ -63,14 +77,14 @@ cpo_scores <- list.files(
   group_by(
     ofolder
   ) %>%
-  filter(
-    !grepl("ws.w_group-fcst_group", mod.file.name)
-  ) %>%
+  # filter(
+  #   !grepl("ws.w_group-fcst_group", mod.file.name)
+  # ) %>%
   filter(
     waic == min(waic)
   )
 
-write.csv(cpo_scores, "summaries/top_stmodel_cpo.csv", row.names = F)
+write.csv(cpo_scores, "summaries/top_stmodel_cpo_v2.csv", row.names = F)
 
 
 ##
@@ -78,28 +92,6 @@ write.csv(cpo_scores, "summaries/top_stmodel_cpo.csv", row.names = F)
 # Obtaining samples from models
 
 # job files
-
-"# Sample extraction for ST-PR-NEN models
-#!/bin/bash
-#$ -N STPRNEN
-#$ -wd /exports/eddie/scratch/s2441782/scenarios/prob-scen-spatial/
-#$ -o /exports/eddie/scratch/s2441782/scenarios/spatial/ST-PR-NEN/jobfiles/
-#$ -e /exports/eddie/scratch/s2441782/scenarios/spatial/ST-PR-NEN/jobfiles/
-##$ -l h_rt=4:00:0,h_vmem=16G
-#$ -pe sharedmem 8
-#$ -M s2441782@ed.ac.uk
-#$ -m bea
-#$ -t 1-3
-
-# Initialise modules
-source /etc/profile.d/modules.sh
-
-# Load R
-module load R/4.5
-
-# Run resolution code
-Rscript model_samples.R $SGE_TASK_ID 1 TRUE ST-PR-NEN r_err.cf_f_gaussian_eta_feat_ws.w_group-matern-ar1-etaderiv.rds
-"
 
 #
 for (i in seq_along(cpo_scores$mod.file.name)) {
