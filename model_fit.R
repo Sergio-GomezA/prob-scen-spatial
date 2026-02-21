@@ -217,7 +217,7 @@ ggplot() +
     inherit.aes = FALSE
   ) +
   theme_map()
-ggsave("fig/meshhex_scottish_wfsamp.pdf", width = 6, height = 4)
+# ggsave("fig/meshhex_scottish_wfsamp.pdf", width = 6, height = 4)
 ########## Model specifications ###############################################
 
 # read model list
