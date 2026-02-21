@@ -64,6 +64,7 @@ test_df <- data.frame(
   )
 
 scores_path <- "~/Documents/proj2/spatial/etaderiv"
+scores_path <- "var_scores"
 cpo_scores <- list.files(
   scores_path
 ) %>%
@@ -81,7 +82,11 @@ cpo_scores <- list.files(
   #   !grepl("ws.w_group-fcst_group", mod.file.name)
   # ) %>%
   filter(
-    waic == min(waic)
+    ifelse(
+      !is.na(mean_log_gcpo),
+      mean_log_gcpo == min(mean_log_gcpo),
+      mean_log_cpo == min(mean_log_cpo)
+    )
   )
 
 write.csv(cpo_scores, "summaries/top_stmodel_cpo_v2.csv", row.names = F)
