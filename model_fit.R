@@ -237,7 +237,7 @@ features_vec <- model_list[model_id, 7] %>%
 # gsub("ar2", "ar1g", .)
 # gsub("ar2", "matern-ar1", .)
 # features_vec <- features_vec[-4]
-features_vec[4] <- "ar1g"
+features_vec[4] <- "ar2g"
 save_stack <- ifelse(any(grepl("matern", features_vec)), TRUE, FALSE)
 cat(
   sprintf(
@@ -391,8 +391,8 @@ sim.obj <- simulation.plots.inla2(
   path = "fig",
   run.name = paste0(prefix, "_t", t1 + hours(1)),
   skip.plots = FALSE,
-  inla_seed = 1
-  # sample.df = sample.test$samples,
+  inla_seed = 1,
+  sample.df = sim.obj$samples,
   # legend.position = "bottom"
 )
 
