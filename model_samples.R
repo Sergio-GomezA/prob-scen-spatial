@@ -20,10 +20,11 @@ day_id <- 1
 window_id <- 1
 restart <- TRUE
 # mod.file.name <- "2503_us_npow_eta0.rds"
-mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
-mod.file.name <- "r_actuals.cf_f_beta_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
-mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-ar1g-etaderiv.rds"
+# mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
+# mod.file.name <- "r_actuals.cf_f_beta_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
+# mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-ar1g-etaderiv.rds"
 # mod.file.name <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"
+mod.file.name <- "r_err.cf_f_gaussian_fd_feat_ws.w_group-fcst_group-fd_group-hour-ar2g.rds"
 ofolder <- case_when(
   grepl("err.cf", mod.file.name) &
     grepl("etaderiv", mod.file.name) &
@@ -34,9 +35,19 @@ ofolder <- case_when(
   grepl("err.cf", mod.file.name) &
     grepl("etaderiv", mod.file.name) &
     grepl("ar1g", mod.file.name) ~ "AR1-PR-NEN",
+  grepl("err.cf", mod.file.name) &
+    grepl("etaderiv", mod.file.name) &
+    grepl("ar2g", mod.file.name) ~ "AR2-PR-NEN",
+  grepl("err.cf", mod.file.name) &
+    grepl("ar2g", mod.file.name) ~ "AR2-NEN",
   grepl("actuals.cf", mod.file.name) &
     grepl("etaderiv", mod.file.name) &
     grepl("ar1g", mod.file.name) ~ "AR1-PR-NPB",
+  grepl("actuals.cf", mod.file.name) &
+    grepl("etaderiv", mod.file.name) &
+    grepl("ar2g", mod.file.name) ~ "AR2-PR-NPB",
+  grepl("actuals.cf", mod.file.name) &
+    grepl("ar2g", mod.file.name) ~ "AR2-NPB",
   grepl("err.cf", mod.file.name) &
     grepl("matern", mod.file.name) ~ "ST-NEN",
   grepl("actuals.cf", mod.file.name) &
@@ -47,7 +58,6 @@ ofolder <- case_when(
     grepl("etaderiv", mod.file.name) ~ "PR-NPB",
   TRUE ~ "Other"
 )
-
 # Get task ID and others from command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
 regime <- NULL #"mid"
@@ -208,10 +218,14 @@ train_data <- history_window(
 ) %>%
   arrange(site_name, time) %>%
   mutate(site_id_orig = site_id, site_id = as.integer(as.factor(site_name))) %>%
-  mutate(eta.1 = 1:n()) %>%
+  mutate(eta.1 = 1:n(), hour = hour(time)) %>%
   group_by(site_name) %>%
-  mutate(eta.2 = lag(eta.1, default = NA)) %>%
+  mutate(
+    fd = forecast.cf - lag(forecast.cf, 3),
+    eta.2 = lag(eta.1, default = NA)
+  ) %>%
   ungroup() %>%
+  mutate(fd_group = inla.group(fd, n = 40, method = "quantile")) %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
   mutate(
     lon = st_coordinates(.)[, 1],
@@ -374,8 +388,8 @@ sim.obj <- simulation.plots.inla2(
   resp.lab = resp.lab,
   # ylim = c(0,1.02),
   nsamp = n.samples,
-  # show.fig = show.fig,
-  show.fig = TRUE,
+  show.fig = show.fig,
+  # show.fig = TRUE,
   save.fig = save.fig,
   fig.ext = ".png",
   path = path.fig,
