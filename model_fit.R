@@ -7,8 +7,8 @@ local_run <- if (startsWith(getwd(), "/home/s2441782")) TRUE else FALSE
 args <- commandArgs(trailingOnly = TRUE)
 # browser()
 # Assign default values
-model_id <- 5
-model_list_file <- "data/model_list_spatial.parquet"
+model_id <- 1
+model_list_file <- "data/model_list_spatial_v2.parquet"
 ofolder <- "etaderiv"
 save_model <- TRUE
 initial_values_file <- ""
@@ -141,8 +141,12 @@ data_masked <- history_window(
   mutate(site_id_orig = site_id, site_id = as.integer(as.factor(site_name))) %>%
   mutate(eta.1 = 1:n(), hour = hour(time)) %>%
   group_by(site_name) %>%
-  mutate(eta.2 = lag(eta.1, 3, default = NA)) %>%
+  mutate(
+    fd = forecast.cf - lag(forecast.cf, 3),
+    eta.2 = lag(eta.1, 3, default = NA)
+  ) %>%
   ungroup() %>%
+  mutate(fd_group = inla.group(fd, n = 40, method = "quantile")) %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
   mutate(
     lon = st_coordinates(.)[, 1],
@@ -209,14 +213,14 @@ wf.mesh <- fm_mesh_2d(
 
 # wf.mesh$n
 
-ggplot() +
-  geom_fm(data = wf.mesh) +
-  geom_point(
-    aes(x, y),
-    data = data_masked %>% select(x, y) %>% unique(),
-    inherit.aes = FALSE
-  ) +
-  theme_map()
+# ggplot() +
+#   geom_fm(data = wf.mesh) +
+#   geom_point(
+#     aes(x, y),
+#     data = data_masked %>% select(x, y) %>% unique(),
+#     inherit.aes = FALSE
+#   ) +
+#   theme_map()
 # ggsave("fig/meshhex_scottish_wfsamp.pdf", width = 6, height = 4)
 ########## Model specifications ###############################################
 
@@ -237,7 +241,7 @@ features_vec <- model_list[model_id, 7] %>%
 # gsub("ar2", "ar1g", .)
 # gsub("ar2", "matern-ar1", .)
 # features_vec <- features_vec[-4]
-features_vec[4] <- "ar2g"
+# features_vec[4] <- "ar2g"
 save_stack <- ifelse(any(grepl("matern", features_vec)), TRUE, FALSE)
 cat(
   sprintf(

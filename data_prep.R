@@ -610,3 +610,46 @@ read_parquet("data/model_list_spatial.parquet") %>%
   write_parquet(
     file.path("data", "model_list_spatial.parquet")
   )
+
+
+## New model list v2.0 ####
+
+model_list_fname <- "model_list_spatial_v2.parquet"
+
+model_list_df <- data.frame(
+  id = 1:3
+) %>%
+  mutate(
+    family = "gaussian",
+    fderiv = "eta",
+    out = "error",
+    transformation = "normalised",
+    response = "err.cf",
+    all_combinations = list(
+      c("ws.w_group", "fcst_group", "hour", "ar2g", "etaderiv"),
+      c("ws.w_group", "fcst_group", "fd_group", "hour", "ar2g"),
+      c("ws.w_group", "fcst_group", "hour", "matern-ar1", "etaderiv")
+    )
+  ) %>%
+  mutate(
+    # fderiv = ifelse(id == 3, "fd", fderiv),
+    fderiv = ifelse((grepl("etaderiv", all_combinations)), fderiv, "fd")
+  )
+beta_models <- model_list_df %>%
+  mutate(
+    family = "beta",
+    out = "observed",
+    response = "actuals.cf",
+    id = nrow(model_list_df) + 1:n()
+  )
+
+bind_rows(model_list_df, beta_models) %>%
+  rowwise() %>%
+  mutate(
+    readable_feat = paste(unlist(all_combinations), collapse = ", ")
+  ) %>%
+  ungroup() %>%
+  # View()
+  write_parquet(
+    file.path("data", model_list_fname)
+  )
