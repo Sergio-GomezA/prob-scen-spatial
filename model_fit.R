@@ -392,7 +392,7 @@ sim.obj <- simulation.plots.inla2(
   run.name = paste0(prefix, "_t", t1 + hours(1)),
   skip.plots = FALSE,
   inla_seed = 1,
-  sample.df = sim.obj$samples,
+  # sample.df = sim.obj$samples,
   # legend.position = "bottom"
 )
 
