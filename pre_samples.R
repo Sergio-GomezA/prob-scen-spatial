@@ -116,7 +116,7 @@ for (i in seq_along(cpo_scores$mod.file.name)) {
 #$ -pe sharedmem 8
 #$ -M s2441782@ed.ac.uk
 #$ -m bea
-#$ -t 1-60
+#$ -t 1-2
 
 # Initialise modules
 source /etc/profile.d/modules.sh
