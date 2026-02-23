@@ -230,3 +230,95 @@ Rscript model_samples.R $SGE_TASK_ID 1 TRUE %s %s",
   # Make the script executable
   Sys.chmod(job_script, mode = "0755")
 }
+
+
+## 3rd batch of NPB models
+model_fnames <- list.files(
+  "~/Documents/proj2/spatial/model_objects",
+  # pattern = "\\.rds$"
+  pattern = "^r_actuals.cf.+ar2g-etaderiv"
+)
+
+test_df <- data.frame(
+  mod.file.name = model_fnames
+) %>%
+  mutate(
+    ofolder = c(
+      "ST-PR-NPB_fh",
+      "ST-PR-NPB_f",
+      "ST-PR-NPB_wfh",
+      "ST-PR-NPB_wf",
+      "ST-PR-NPB_w"
+    )
+  )
+
+scores_path <- "~/Documents/proj2/spatial/etaderiv"
+scores_path <- "var_scores"
+cpo_scores <- list.files(
+  scores_path
+) %>%
+  lapply(., \(x) fread(file.path(scores_path, x)) %>% mutate(fname = x)) %>%
+  bind_rows() %>%
+  mutate(
+    mod.file.name = paste0(gsub("var_scores_|\\.csv", "", fname), ".rds")
+  ) %>%
+  right_join(., test_df, by = "mod.file.name") %>%
+  select(ofolder, mod.file.name, everything()) %>%
+  group_by(
+    ofolder
+  ) %>%
+  filter(
+    mod.file.name %in% test_df$mod.file.name
+  ) %>%
+  filter(
+    ifelse(
+      !is.na(mean_log_gcpo),
+      mean_log_gcpo == min(mean_log_gcpo),
+      mean_log_cpo == min(mean_log_cpo)
+    )
+  )
+
+write.csv(cpo_scores, "summaries/top_stmodel_cpo_NPBv2.csv", row.names = F)
+
+
+#
+for (i in 1:2) {
+  # browser()
+  jobname <- cpo_scores$ofolder[i] %>% gsub("-", "", .)
+
+  job_script <- sprintf("jobs/sample_%s.sh", jobname)
+
+  script_content <- sprintf(
+    "# Sample extraction for %s models
+#!/bin/bash
+#$ -N %s
+#$ -wd /exports/eddie/scratch/s2441782/scenarios/prob-scen-spatial/
+#$ -o /exports/eddie/scratch/s2441782/scenarios/spatial/%s/jobfiles/
+#$ -e /exports/eddie/scratch/s2441782/scenarios/spatial/%s/jobfiles/
+##$ -l h_rt=4:00:0,h_vmem=16G
+#$ -pe sharedmem 8
+#$ -M s2441782@ed.ac.uk
+#$ -m bea
+#$ -t 3-60
+
+# Initialise modules
+source /etc/profile.d/modules.sh
+
+# Load R
+module load R/4.5
+
+# Run resolution code
+Rscript model_samples.R $SGE_TASK_ID 1 TRUE %s %s",
+    cpo_scores$ofolder[i], # dash name description
+    jobname, #  no-dash name
+    cpo_scores$ofolder[i], # ofolder
+    cpo_scores$ofolder[i], # ofolder
+    cpo_scores$ofolder[i], # ofolder
+    cpo_scores$mod.file.name[i] # file name
+  )
+  # Write the script to a file
+  writeLines(script_content, con = job_script)
+
+  # Make the script executable
+  Sys.chmod(job_script, mode = "0755")
+}

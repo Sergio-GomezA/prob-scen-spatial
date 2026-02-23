@@ -635,6 +635,7 @@ model_list_df <- data.frame(
     # fderiv = ifelse(id == 3, "fd", fderiv),
     fderiv = ifelse((grepl("etaderiv", all_combinations)), fderiv, "fd")
   )
+
 beta_models <- model_list_df %>%
   mutate(
     family = "beta",
@@ -653,7 +654,22 @@ st_beta_variations <- beta_models[rep(3, 3), ] %>%
     id = 6 + 1:n()
   )
 
-bind_rows(model_list_df, beta_models, st_beta_variations) %>%
+ar_beta_variations <- beta_models[rep(1, 3), ] %>%
+  mutate(
+    all_combinations = list(
+      c("ws.w_group", "fcst_group", "matern-ar1", "etaderiv"),
+      c("fcst_group", "hour", "matern-ar1", "etaderiv"),
+      c("fcst_group", "matern-ar1", "etaderiv")
+    ),
+    id = 10 + 1:n()
+  )
+
+bind_rows(
+  model_list_df,
+  beta_models,
+  st_beta_variations,
+  ar_beta_variations
+) %>%
   rowwise() %>%
   mutate(
     readable_feat = paste(unlist(all_combinations), collapse = ", ")

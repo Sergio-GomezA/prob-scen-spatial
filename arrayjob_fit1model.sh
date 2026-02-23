@@ -7,7 +7,7 @@
 #$ -M s2441782@ed.ac.uk
 #$ -m bea
 #$ -pe sharedmem 24
-#$ -t 7-9
+#$ -t 10-12
 
 # Initialise modules
 source /etc/profile.d/modules.sh
