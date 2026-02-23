@@ -1,1 +1,2 @@
-""
+"waic","mean_log_cpo","mean_log_gcpo","intern.precision.parameter.for.the.beta.observations.2.","Log.precision.for.fcst_group","Log.precision.for.hour","log.Range..for.spatial","log.Stdev..for.spatial","Group.rho_intern.for.spatial","Beta_intern.for.eta.1","tags"
+-3032.13782190507,0.876999651780724,NA,3.19387649597823,-6.90237313882272,7.04035400973878,2.46852607672641,0.992778101337064,5.00114563680844,-0.704034301331617,"intern precision-parameter for the beta observations[2], Log precision for fcst_group, Log precision for hour, log(Range) for spatial, log(Stdev) for spatial, Group rho_intern for spatial, Beta_intern for eta.1"
