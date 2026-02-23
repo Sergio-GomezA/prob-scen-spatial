@@ -657,9 +657,9 @@ st_beta_variations <- beta_models[rep(3, 3), ] %>%
 ar_beta_variations <- beta_models[rep(1, 3), ] %>%
   mutate(
     all_combinations = list(
-      c("ws.w_group", "fcst_group", "matern-ar1", "etaderiv"),
-      c("fcst_group", "hour", "matern-ar1", "etaderiv"),
-      c("fcst_group", "matern-ar1", "etaderiv")
+      c("ws.w_group", "fcst_group", "ar2g", "etaderiv"),
+      c("fcst_group", "hour", "ar2g", "etaderiv"),
+      c("fcst_group", "ar2g", "etaderiv")
     ),
     id = 10 + 1:n()
   )
