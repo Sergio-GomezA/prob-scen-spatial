@@ -297,7 +297,7 @@ for (i in 1:3) {
 #$ -pe sharedmem 8
 #$ -M s2441782@ed.ac.uk
 #$ -m bea
-#$ -t 3-60
+#$ -t 1-2
 
 # Initialise modules
 source /etc/profile.d/modules.sh
