@@ -643,7 +643,17 @@ beta_models <- model_list_df %>%
     id = nrow(model_list_df) + 1:n()
   )
 
-bind_rows(model_list_df, beta_models) %>%
+st_beta_variations <- beta_models[rep(3, 3), ] %>%
+  mutate(
+    all_combinations = list(
+      c("ws.w_group", "fcst_group", "matern-ar1", "etaderiv"),
+      c("fcst_group", "hour", "matern-ar1", "etaderiv"),
+      c("fcst_group", "matern-ar1", "etaderiv")
+    ),
+    id = 6 + 1:n()
+  )
+
+bind_rows(model_list_df, beta_models, st_beta_variations) %>%
   rowwise() %>%
   mutate(
     readable_feat = paste(unlist(all_combinations), collapse = ", ")
