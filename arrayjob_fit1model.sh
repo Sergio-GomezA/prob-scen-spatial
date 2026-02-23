@@ -6,7 +6,7 @@
 #$ -e /exports/eddie/scratch/s2441782/scenarios/jobfiles/
 #$ -M s2441782@ed.ac.uk
 #$ -m bea
-#$ -pe sharedmem 36
+#$ -pe sharedmem 24
 #$ -t 7-9
 
 # Initialise modules
