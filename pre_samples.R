@@ -244,15 +244,13 @@ test_df <- data.frame(
 ) %>%
   mutate(
     ofolder = c(
-      "ST-PR-NPB_fh",
-      "ST-PR-NPB_f",
-      "ST-PR-NPB_wfh",
-      "ST-PR-NPB_wf",
-      "ST-PR-NPB_w"
+      "AR2-PR-NPB_f",
+      "AR2-PR-NPB_fh",
+      "AR2-PR-NPB_wf",
+      "AR2-PR-NPB_wfh"
     )
   )
 
-scores_path <- "~/Documents/proj2/spatial/etaderiv"
 scores_path <- "var_scores"
 cpo_scores <- list.files(
   scores_path
@@ -278,11 +276,11 @@ cpo_scores <- list.files(
     )
   )
 
-write.csv(cpo_scores, "summaries/top_stmodel_cpo_NPBv2.csv", row.names = F)
+write.csv(cpo_scores, "summaries/top_stmodel_cpo_ARNPBv2.csv", row.names = F)
 
 
 #
-for (i in 1:2) {
+for (i in 1:3) {
   # browser()
   jobname <- cpo_scores$ofolder[i] %>% gsub("-", "", .)
 
