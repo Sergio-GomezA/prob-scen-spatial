@@ -139,3 +139,49 @@ Rscript model_samples.R $SGE_TASK_ID 1 TRUE %s %s",
   # Make the script executable
   Sys.chmod(job_script, mode = "0755")
 }
+
+## 2nd batch of NPB models
+model_fnames <- list.files(
+  "~/Documents/proj2/spatial/model_objects",
+  # pattern = "\\.rds$"
+  pattern = "^r_actuals.cf.+matern-ar1-etaderiv"
+)
+
+test_df <- data.frame(
+  mod.file.name = model_fnames
+) %>%
+  mutate(
+    ofolder = c(
+      "ST-PR-NPB_fh",
+      "ST-PR-NPB_f",
+      "ST-PR-NPB_wfh",
+      "ST-PR-NPB_wf",
+      "ST-PR-NPB_w"
+    )
+  )
+
+scores_path <- "~/Documents/proj2/spatial/etaderiv"
+scores_path <- "var_scores"
+cpo_scores <- list.files(
+  scores_path
+) %>%
+  lapply(., \(x) fread(file.path(scores_path, x)) %>% mutate(fname = x)) %>%
+  bind_rows() %>%
+  mutate(
+    mod.file.name = paste0(gsub("var_scores_|\\.csv", "", fname), ".rds")
+  ) %>%
+  right_join(., test_df, by = "mod.file.name") %>%
+  select(ofolder, mod.file.name, everything()) %>%
+  group_by(
+    ofolder
+  ) %>%
+  # filter(
+  #   !grepl("ws.w_group-fcst_group", mod.file.name)
+  # ) %>%
+  filter(
+    ifelse(
+      !is.na(mean_log_gcpo),
+      mean_log_gcpo == min(mean_log_gcpo),
+      mean_log_cpo == min(mean_log_cpo)
+    )
+  )
