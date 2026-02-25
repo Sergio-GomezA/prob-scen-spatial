@@ -74,7 +74,7 @@ cpo_scores <- read.csv("summaries/top_stmodel_cpo.csv") %>%
     ),
     mod_prefix = gsub("\\.rds", "_t", mod.file.name)
   )
-
+sorted_list <- read_csv("summaries/sorted_stmodels.csv")
 source("aux_funct_ps.R")
 # debug(model.scoring.reliability)
 # debug(stats_hour_model)
@@ -86,7 +86,7 @@ data.scaled <- read_parquet(input_data) %>%
   mutate(forecast.cf_orig = forecast.cf, forecast = forecast.cf * capacity)
 
 # first day to forecast
-t0 <- as.POSIXct("2024-07-01", tz = "UTC")
+t0 <- as.POSIXct("2024-06-30", tz = "UTC")
 
 # days to run
 time_seq <- seq(
@@ -95,12 +95,13 @@ time_seq <- seq(
   by = "day"
 )
 require(arrow)
+source("aux_funct_ps.R")
 test <- model.scoring.reliability(
-  model.name = cpo_scores$mod_prefix[1],
+  model.name = sorted_list$mod_prefix[1],
   time_seq = time_seq,
-  sample.path = cpo_scores$sample_path[1],
+  sample.path = sorted_list$sample_path[1],
   compressed = TRUE,
-  ext = ".parquet"
+  ext = " 23:00:00.parquet"
 )
 
 # hour
@@ -112,7 +113,7 @@ score.tbl <- mcmapply(
         time_seq,
         path,
         compressed = TRUE,
-        ext = ".parquet"
+        ext = " 23:00:00.parquet"
       ),
       error = function(e) {
         message("Error when scoring samples: ", e$message)
@@ -120,10 +121,10 @@ score.tbl <- mcmapply(
       }
     )
   },
-  model = cpo_scores$mod_prefix,
-  path = cpo_scores$sample_path,
+  model = sorted_list$mod_prefix,
+  path = sorted_list$sample_path,
   mc.cores = available_cores() - 2,
   SIMPLIFY = FALSE
 )
 
-saveRDS(score.tbl, "summaries/spatial_scores.rds")
+saveRDS(score.tbl, "summaries/spatial_scores_v2.rds")

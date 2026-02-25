@@ -334,6 +334,12 @@ sorted_list <- sorting_models %>%
     cpo_scores,
     by = c("code" = "root_ofolder")
   )
+sorted_list %>%
+  write.csv(
+    "summaries/sorted_stmodels.csv",
+    row.names = FALSE
+  )
+
 # % effects ####
 
 fnames <- sorted_list %>%
@@ -559,7 +565,7 @@ data_pit <- lapply(
   bind_rows()
 
 write.csv(data_pit, "summaries/data_pit_st.csv", row.names = FALSE)
-data_pit <- read.csv("data_pit_st.csv")
+data_pit <- read.csv("summaries/data_pit_st.csv")
 
 my_palette_0 <- ggsci::pal_lancet()(6)
 
@@ -654,6 +660,7 @@ ggsave(
 # % Scores
 
 score.tbl <- readRDS("summaries/spatial_scores.rds")
+score.tbl <- readRDS("summaries/spatial_scores_v2.rds")
 
 # score.tbl.hour <- lapply(score.tbl, \(x) x$hour)
 score.tbl.day <- lapply(score.tbl, \(x) x$day) %>%
@@ -665,10 +672,11 @@ score.tbl.day <- lapply(score.tbl, \(x) x$day) %>%
 score.tbl.gb <- lapply(score.tbl, \(x) x$global) %>%
   bind_rows()
 
-
+cpo_scores$root_ofolder
 model_scores <- cpo_scores %>%
+  ungroup() %>%
   select(
-    ofolder,
+    root_ofolder,
     mod_prefix
   ) %>%
   left_join(
@@ -680,10 +688,10 @@ model_scores <- cpo_scores %>%
       ),
     by = c("mod_prefix" = "model")
   ) %>%
-  select(-mod_prefix)
+  select(-c(mod_prefix))
 
 scores1.tbl <- sorting_models %>%
-  left_join(model_scores, by = c("code" = "ofolder")) %>%
+  left_join(model_scores, by = c("code" = "root_ofolder")) %>%
   select(-n) %>%
   # Apply bolding to all numeric columns
   mutate(across(

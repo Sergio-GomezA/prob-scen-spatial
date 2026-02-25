@@ -1486,15 +1486,22 @@ stats_hour_model <- function(
     fname
   ) %>%
     {
-      if (ext == ".parquet") read_parquet(.) else fread(.)
+      if (grepl(".parquet$", ext)) read_parquet(.) else fread(.)
     } %>%
     as.data.frame()
 
   # compare with actuals - forecast error
-  fcst_dates <- seq(
-    from = t1 + 0 * 60 * 60,
-    to = t1 + 23 * 60 * 60,
-    by = "hour"
+  fcst_dates <- tryCatch(
+    {
+      scen.tbl$time %>% unique()
+    },
+    error = function(e) {
+      seq(
+        from = t1 + 0 * 60 * 60,
+        to = t1 + 23 * 60 * 60,
+        by = "hour"
+      )
+    }
   )
 
   subsample <- power_data %>%
@@ -1548,7 +1555,7 @@ stats_hour_model <- function(
     ) %>%
       t()
   }
-
+  # browser()
   observed <- "actuals.cf"
   # orig.obs <- subsample %>%
   #   select(time,all_of(c("","forecast.cf")))
