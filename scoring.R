@@ -34,6 +34,13 @@ test_df <- data.frame(
     )
   )
 
+# AR-PR-NEN
+# AR-PR-NPB
+# ST-NEN
+# ST-NPB
+# ST-PR-NEN
+# ST-PR-NPB
+
 scores_path <- "~/Documents/proj2/spatial/etaderiv"
 cpo_scores <- list.files(
   scores_path

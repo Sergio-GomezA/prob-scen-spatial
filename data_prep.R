@@ -241,6 +241,12 @@ grouping.days <- scots_wf_filtered %>%
       breaks = quantile(actuals.cf, proba, na.rm = TRUE),
       include.lowest = TRUE,
       labels = prob.labels
+    ),
+    power.groupf = cut(
+      forecast.cf,
+      breaks = quantile(actuals.cf, proba, na.rm = TRUE),
+      include.lowest = TRUE,
+      labels = prob.labels
     )
   )
 
@@ -253,6 +259,11 @@ scots_wf_filtered <- scots_wf_filtered %>%
 arrow::write_parquet(
   scots_wf_filtered,
   file.path("data", "scottish_wfsamp_24.parquet")
+)
+
+arrow::write_parquet(
+  scots_wf,
+  file.path("data", "scottish_wf_24.parquet")
 )
 
 scots_wf_filtered %>%
