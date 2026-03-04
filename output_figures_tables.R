@@ -125,7 +125,7 @@ p_main <- ggplot() +
   theme_map()
 p_locator <- ggplot() +
   geom_sf(data = uk, fill = "grey90", colour = "grey40") +
-  geom_sf(data = zoom_bbox, fill = NA, colour = "darkred", linewidth = 1) +
+  geom_sf(data = zoom_bbox, fill = NA, colour = "darkred", linewidth = 0.8) +
   theme_void()
 library(patchwork)
 require(ggspatial)
@@ -138,9 +138,9 @@ p_main +
   inset_element(
     p_locator,
     left = 0.65,
-    bottom = 0.65,
-    right = 1.1,
-    top = 0.95
+    bottom = 0.5,
+    right = 1,
+    top = 1.2
   )
 ggsave(
   "fig/fig_5bis.eps",
@@ -215,10 +215,30 @@ scots_wf <- read_parquet("data/scottish_wf_24.parquet") %>%
     time = halfHourEndTime
   )
 
+dist_mat <- data.scaled %>%
+  select(lon, lat) %>%
+  distinct() %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  mutate(
+    lon = st_coordinates(.)[, 1],
+    lat = st_coordinates(.)[, 2]
+  ) %>%
+  st_transform(crs = 27700) %>%
+  mutate(
+    x = st_coordinates(.)[, 1] / 1000,
+    y = st_coordinates(.)[, 2] / 1000
+  ) %>%
+  st_drop_geometry() %>%
+  select(x, y) %>%
+  dist()
+dist_mat %>%
+  range()
+dist_mat %>% as.numeric() %>% density() %>% plot()
+dist_mat %>% as.numeric() %>% hist()
 scots_wf %>% select(lon, lat) %>% distinct() %>% nrow()
 
 corr_df <- spatial_corr_by_distance_fast(
-  scots_wf,
+  data.scaled,
   value_col = "actuals.cf",
   n_bins = 15,
   bin_type = "quantile",
@@ -324,6 +344,7 @@ ordered.levels <- c(
   "AR2-PR-NEN",
   "ST-PR-NEN"
 )
+ordered.labels <- sub("AR2-", "", ordered.levels)
 sorting_models <- data.frame(
   n = 1:length(ordered.levels),
   code = ordered.levels
@@ -372,35 +393,6 @@ figheight <- 2.5
 
 # ggsave(file.path(fig_path, "fig_13a.eps"), width = figwidth, height = figheight)
 ggsave(file.path(fig_path, "fig_13a.pdf"), width = figwidth, height = figheight)
-
-# % hyperparameters
-
-hyper_names <- mod.temp$summary.hyperpar %>% rownames()
-hyper_names_print <- c(
-  "'Precision Beta'",
-  "Precision~s[f](.)",
-  "Range",
-  "Spatial~field~sigma",
-  "rho",
-  "Power~ramp~effect"
-)
-# sapply(hyper_names_print, latex2exp::TeX)
-names(hyper_names_print) <- hyper_names
-phyper <- plot.hyper.dens(mod.temp, show.fig = FALSE)
-phyper +
-  labs(title = "", x = "") +
-  facet_wrap(
-    ~parameter,
-    scales = "free",
-    ncol = 2,
-    labeller = as_labeller(hyper_names_print, default = label_parsed)
-  )
-
-ggsave(
-  file.path(fig_path, "fig_14a.pdf"),
-  width = figwidth * 2,
-  height = figheight * 2
-)
 
 
 ## ST-PR-NEN ####
@@ -456,6 +448,145 @@ t[[3]]$fig +
 
 # ggsave(file.path(fig_path, "fig_6d.eps"), width = figwidth, height = figheight)
 ggsave(file.path(fig_path, "fig_13d.pdf"), width = figwidth, height = figheight)
+
+
+## Model Densities ####
+
+# % hyperparameters
+
+model_path <- "~/Documents/proj2/spatial/model_objects"
+
+mod_names <- c(
+  "r_actuals.cf_f_beta_eta_feat_fcst_group-matern-ar1-etaderiv.rds",
+  "r_err.cf_f_gaussian_eta_feat_ws.w_group-fcst_group-hour-matern-ar1-etaderiv.rds"
+)
+
+fname <- "summaries/densities_summaries.rds"
+if (!file.exists(fname)) {
+  summaries.dens <- lapply(mod_names, \(fname) {
+    modeltemp <- readRDS(file.path(model_path, fname))
+
+    c(modeltemp$marginals.fixed, modeltemp$marginals.hyperpar)
+  })
+  saveRDS(summaries.dens, fname)
+} else {
+  summaries.dens <- readRDS(fname)
+}
+
+source("aux_funct_ps.R")
+
+### NPB ####
+densities <- plot.densities_regime(
+  sum_dens = summaries.dens[1],
+  model_tag = "NPB",
+  ncol = 3
+)
+par_names <- summaries.dens[[1]] %>% names()
+par_names_print <- c(
+  "Intercept",
+  "'Precision Beta'",
+  # "Precision~gaussian",
+  # "Precision~s[w](.)",
+  "Precision~s[f](.)",
+  # "Precision~s[m](.)",
+  "Range",
+  "Spatial~field~sigma",
+  "AR~rho",
+  "Power~ramp~effect"
+)
+
+names(par_names_print) <- par_names
+densities +
+  labs(title = "", x = "") +
+  facet_wrap(
+    ~parameter,
+    scales = "free",
+    ncol = 3,
+    labeller = as_labeller(par_names_print, default = label_parsed)
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text = element_text(size = 7), # Adjust axis text font size
+    panel.spacing.x = unit(1, "cm") # increase spacing
+  ) +
+  scale_color_manual(values = "gray25")
+
+ggsave(file.path(fig_path, "fig_S4.eps"), width = 8, height = 4.5)
+
+### NEN ####
+source("aux_funct_ps.R")
+loglist <- c("Precision for fcst_group", "Precision for ws.w_group")
+densities <- plot.densities_regime(
+  sum_dens = summaries.dens[2],
+  model_tag = "NEN",
+  ncol = 3,
+  loglist = loglist
+)
+par_names <- summaries.dens[[2]] %>% names()
+par_names_print <- c(
+  "Intercept",
+  # "'Precision Beta'",
+  "Precision~Gaussian",
+  "Precision~s[w](.)",
+  "Precision~s[f](.)",
+  "Precision~s[h](.)",
+  "Range",
+  "Spatial~field~sigma",
+  "AR~rho",
+  "Power~ramp~effect"
+)
+names(par_names_print) <- par_names
+
+# densities %>% str(levels = 1)
+densities +
+  labs(title = "", x = "") +
+  facet_wrap(
+    ~parameter,
+    scales = "free",
+    ncol = 3,
+    labeller = as_labeller(par_names_print, default = label_parsed)
+  ) +
+  facetted_pos_scales(
+    x = list(
+      parameter %in% loglist ~ scale_x_log10()
+    )
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text = element_text(size = 7), # Adjust axis text font size
+    panel.spacing.x = unit(1, "cm") # increase spacing
+  ) +
+  scale_color_manual(values = "gray25")
+
+ggsave(file.path(fig_path, "fig_S5.eps"), width = 8, height = 4.5)
+
+
+hyper_names <- mod.temp$summary.hyperpar %>% rownames()
+hyper_names_print <- c(
+  "'Precision Beta'",
+  "Precision~s[f](.)",
+  "Range",
+  "Spatial~field~sigma",
+  "rho",
+  "Power~ramp~effect"
+)
+# sapply(hyper_names_print, latex2exp::TeX)
+names(hyper_names_print) <- hyper_names
+phyper <- plot.hyper.dens(mod.temp, show.fig = FALSE)
+phyper +
+  labs(title = "", x = "") +
+  facet_wrap(
+    ~parameter,
+    scales = "free",
+    ncol = 2,
+    labeller = as_labeller(hyper_names_print, default = label_parsed)
+  )
+
+ggsave(
+  file.path(fig_path, "fig_14a.pdf"),
+  width = figwidth * 2,
+  height = figheight * 2
+)
 
 # % hyperparameters
 
@@ -567,41 +698,52 @@ data_pit <- lapply(
 write.csv(data_pit, "summaries/data_pit_st.csv", row.names = FALSE)
 data_pit <- read.csv("summaries/data_pit_st.csv")
 
-my_palette_0 <- ggsci::pal_lancet()(6)
+my_palette_0 <- ggsci::pal_lancet()(4)
 
-data_pit %>%
+p <- data_pit %>%
   mutate(model = factor(model, levels = ordered.levels)) %>%
+  filter(!grepl("AR2-NPB|AR2-NEN", model)) %>%
   ggplot() +
   geom_abline(aes(slope = 1, intercept = 0), col = "darkgray") +
   stat_ecdf(aes(pit, col = model), na.rm = TRUE, lwd = 0.8) +
   # facet_wrap(~version)+
-  scale_color_manual(values = my_palette_0) +
+  scale_color_manual(
+    values = my_palette_0,
+    labels = c("PR-NPB", "ST-PR-NPB", "PR-NEN", "ST-PR-NEN")
+  ) +
   theme(
     legend.position = "inside",
-    legend.position.inside = c(.2, .7),
+    legend.position.inside = c(.75, .25),
+    plot.title = element_text(size = 10), # Adjust title font size
+    axis.text = element_text(size = 8), # Adjust axis text font size
+    axis.title = element_text(size = 9), # Adjust axis label font size
+    legend.text = element_text(size = 8), # Adjust legend text font size
+    legend.title = element_text(size = 8), # Adjust legend title font size
     legend.background = element_blank(), # Makes background completely transparent
     legend.box.background = element_rect(fill = NA, color = NA) # No border
   ) +
-  labs(x = "PIT", y = "ECDF")
-
+  coord_fixed(ratio = 1, xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(x = "PIT", y = "ECDF", col = "")
+p
 ggsave(
   file.path(fig_path, "fig_16.eps"),
-  width = 3.5,
-  height = 3.5
+  p,
+  width = 3,
+  height = 3
 )
 # % Reliability diagrams ####
 source("aux_funct_ps.R")
 # my_palette
 my_palette <- pal_lancet()(6)
 # scales::show_col(my_palette)
-rel.plot <- plot_reliability(
-  global_scores = score.tbl.gb,
-  model_list = etar_list,
-  my_palette = my_palette,
-  show.fig = FALSE,
-  code_subset = grepv("AR1", ordered.levels, invert = TRUE)
-)
-ordered.levels <- c("NPB", "NPN", "NPG", "PN", "PG", "EN", "NEN", "nonpar.")
+# rel.plot <- plot_reliability(
+#   global_scores = score.tbl.gb,
+#   model_list = etar_list,
+#   my_palette = my_palette,
+#   show.fig = FALSE,
+#   code_subset = grepv("AR1", ordered.levels, invert = TRUE)
+# )
+# ordered.levels <- c("NPB", "NPN", "NPG", "PN", "PG", "EN", "NEN", "nonpar.")
 
 plot.data <- score.tbl.gb %>%
   select(1:29) %>%
@@ -616,7 +758,14 @@ plot.data <- score.tbl.gb %>%
     cpo_scores %>% select(mod_prefix, ofolder),
     by = c("model" = "mod_prefix")
   ) %>%
-  mutate(label = factor(ofolder, levels = ordered.levels))
+  filter(!grepl("AR2-NPB|AR2-NEN", root_ofolder)) %>%
+  mutate(
+    label = factor(
+      root_ofolder,
+      levels = ordered.levels,
+      labels = ordered.labels
+    )
+  )
 
 p <- plot.data %>%
   ggplot() +
@@ -637,7 +786,7 @@ p <- plot.data %>%
   ) +
   theme(
     legend.position = "inside",
-    legend.position.inside = c(.64, .17),
+    legend.position.inside = c(.75, .25),
     plot.title = element_text(size = 10), # Adjust title font size
     axis.text = element_text(size = 8), # Adjust axis text font size
     axis.title = element_text(size = 9), # Adjust axis label font size
@@ -646,7 +795,7 @@ p <- plot.data %>%
     legend.background = element_blank(), # Makes background completely transparent
     legend.box.background = element_rect(fill = NA, color = NA) # No border
   ) +
-  guides(col = guide_legend(ncol = 2)) + # Set legend to have 2 columns
+  guides(col = guide_legend(ncol = 1)) + # Set legend to have 2 columns
   coord_fixed(ratio = 1, xlim = c(0, 1), ylim = c(0, 1)) +
   scale_color_manual(values = my_palette) +
   labs(title = "")
@@ -654,31 +803,63 @@ p
 ggsave(
   filename = file.path(fig_path, "fig_17.eps"),
   plot = p,
-  width = 3.5,
-  height = 3.5
+  width = 3,
+  height = 3
 )
 # % Scores
 
 score.tbl <- readRDS("summaries/spatial_scores.rds")
-score.tbl <- readRDS("summaries/spatial_scores_v2.rds")
+
 
 # score.tbl.hour <- lapply(score.tbl, \(x) x$hour)
 score.tbl.day <- lapply(score.tbl, \(x) x$day) %>%
   bind_rows() %>%
-  filter(grepl("matern-ar1-etaderiv", model)) %>%
+  filter(grepl("etaderiv", model)) %>%
+  # filter(grepl("matern-ar1-etaderiv", model)) %>%
   select(date, model, crps) %>%
+  pivot_wider(names_from = model, values_from = crps)
+
+score.tbl.site <- lapply(score.tbl, \(x) x$site) %>%
+  bind_rows() %>%
+  filter(grepl("etaderiv", model)) %>%
+  # filter(grepl("matern-ar1-etaderiv", model)) %>%
+  select(site_name, model, crps) %>%
   pivot_wider(names_from = model, values_from = crps)
 
 score.tbl.gb <- lapply(score.tbl, \(x) x$global) %>%
   bind_rows()
 
-cpo_scores$root_ofolder
+
+cpo_scores <- read.csv("summaries/top_stmodel_cpo.csv") %>%
+  mutate(
+    sample_path = file.path(
+      main_folder,
+      ofolder,
+      "sample"
+    ),
+    mod_prefix = gsub("\\.rds", "_t", mod.file.name)
+  ) %>%
+  filter(!grepl("AR1", ofolder))
+
+ordered.levels <- c(
+  "PR-NPB",
+  # "AR1-PR-NPB",
+  # "ST-NPB",
+  "ST-PR-NPB",
+  "PR-NEN",
+  # "AR1-PR-NEN",
+  # "ST-NEN",
+  "ST-PR-NEN"
+)
+
+# cpo_scores$root_ofolder
 model_scores <- cpo_scores %>%
   ungroup() %>%
   select(
-    root_ofolder,
+    ofolder,
     mod_prefix
   ) %>%
+  filter(grepl("etaderiv", mod_prefix)) %>%
   left_join(
     score.tbl.gb %>%
       select(model, crps, energy, matches("variogram")) %>%
@@ -690,8 +871,13 @@ model_scores <- cpo_scores %>%
   ) %>%
   select(-c(mod_prefix))
 
+sorting_models <- data.frame(
+  n = 1:length(ordered.levels),
+  code = ordered.levels
+)
+
 scores1.tbl <- sorting_models %>%
-  left_join(model_scores, by = c("code" = "root_ofolder")) %>%
+  left_join(model_scores, by = c("code" = "ofolder")) %>%
   select(-n) %>%
   # Apply bolding to all numeric columns
   mutate(across(
@@ -708,3 +894,344 @@ scores1.tbl %>%
   kable(digits = 3, format = "latex", escape = FALSE) %>%
   kable_styling(full_width = F) %>%
   cat()
+
+score.tbl <- readRDS("summaries/spatial_scores_v2.rds")
+score.tbl.gb <- lapply(score.tbl, \(x) x$global) %>%
+  bind_rows()
+
+# Scenarios Groupped ####
+
+sorted_list <- read.csv(
+  "summaries/sorted_stmodels.csv"
+)
+
+ofolder <- sorted_list$ofolder
+date0 <- "2024-08-05"
+
+plot_type <- "sim.small"
+mod_prefix <- gsub("\\.rds", "_t", sorted_list$mod.file.name)
+
+sample_path <- "~/Documents/proj2/spatial"
+extension <- " 23:00:00.parquet"
+
+h0 <- 23
+t0 <- as.Date(date0) + hours(h0)
+fcst_times <- seq.POSIXt(
+  from = as.Date(date0) + hours(h0 + 1),
+  to = as.Date(date0) + hours(h0 + 24),
+  by = "hour"
+)
+
+train_data <- history_window(
+  data.scaled,
+  as.Date(date0) + hours(h0),
+  # as.Date("2024-06-30") + hours(h0),
+  window = 7,
+  units = "days",
+  mask = FALSE
+) %>%
+  arrange(site_name, time)
+fcst_ind <- which(train_data$time %in% fcst_times)
+
+cols_replacement <- train_data %>%
+  select(time, site_name, actuals.cf, forecast.cf) %>%
+  slice(fcst_ind) %>%
+  mutate(
+    site_name = gsub(
+      "wind farm|Wind farm|Wind Farm|Windfarm|\\(Brockloch Rig Phase 2\\)|, Wester Dod Community |Clyde Wind Farm Extension|\\(|\\)| and Dalquhandy Renewable Energy Project| Extension",
+      "",
+      site_name
+    ) %>%
+      trimws()
+  )
+
+n.samp.large <- 20
+set.seed(0)
+selected_sim <- sample(1:1000, n.samp.large)
+single_wf <- "Fallago Rig"
+set_3wf <- c("Aikengall II", "Blackcraig", "Sanquhar Community")
+myextension <- "eps"
+k <- 6
+
+lapply(
+  c(2, 3, 5, 6),
+  \(k) {
+    samp_temp <- read_parquet(
+      file.path(
+        sorted_list$sample_path,
+        sprintf("%s%s%s", mod_prefix, date0, extension)
+      )[k]
+    )
+
+    if (k %in% c(1:6)) {
+      samp_temp <- samp_temp %>%
+        select(-c(site_name, time, actuals.cf, forecast.cf)) %>%
+        bind_cols(
+          cols_replacement
+        )
+    }
+
+    pattern_sel <- "^sim"
+    # pattern_sel <- "^quant"
+
+    aggr_df <- samp_temp %>%
+      select(
+        site_name,
+        time,
+        actuals.cf,
+        forecast.cf,
+        all_of(selected_sim),
+        matches("^quant")
+      ) %>%
+      group_by(time) %>%
+      summarise(
+        across(c(actuals.cf, forecast.cf, matches(pattern_sel)), \(x) {
+          mean(x, na.rm = TRUE)
+        })
+      ) %>%
+      mutate(
+        across(
+          matches(pattern_sel),
+          \(x) if (grepl("err.cf", mod_prefix[k])) x + forecast.cf else x
+        )
+      ) %>%
+      pivot_longer(
+        cols = c(actuals.cf, forecast.cf, matches(pattern_sel)),
+        names_to = "type",
+        values_to = "value"
+      ) %>%
+      mutate(
+        value = pmin(1, pmax(0, value)),
+        type = factor(
+          type,
+          levels = c(
+            paste0("sim", selected_sim),
+            "forecast.cf",
+            "actuals.cf"
+          )
+        )
+      )
+    aggr_df %>%
+      ggplot() +
+      geom_line(aes(time, value, col = type)) +
+      coord_cartesian(ylim = c(0, 1)) +
+      scale_color_manual(
+        values = (c("darkred", "darkblue", rep("grey50", 30))),
+        breaks = c("actuals.cf", "forecast.cf", paste0("sim", selected_sim[1])),
+        labels = c("observed", "forecast", "scenarios")
+      ) +
+      labs(col = "", y = "") +
+      theme(
+        legend.position = ifelse(k == 6, "inside", "none"),
+        legend.position.inside = c(0.25, 0.75),
+        legend.background = element_blank(), # Makes background completely transparent
+        legend.box.background = element_rect(fill = NA, color = NA) # No border
+      ) +
+      scale_x_datetime(date_labels = "%H:%M")
+
+    ggsave(
+      sprintf("fig_fcst/aggr_%s%s.%s", sorted_list$code[k], date0, myextension),
+      width = 3.5,
+      height = 3
+    )
+
+    selectwf_df <- samp_temp %>%
+      select(
+        site_name,
+        time,
+        actuals.cf,
+        forecast.cf,
+        all_of(selected_sim),
+        matches("^quant")
+      ) %>%
+      filter(site_name %in% set_3wf) %>%
+      mutate(
+        across(
+          matches(pattern_sel),
+          \(x) if (grepl("err.cf", mod_prefix[k])) x + forecast.cf else x
+        )
+      ) %>%
+      pivot_longer(
+        cols = c(actuals.cf, forecast.cf, matches(pattern_sel)),
+        names_to = "type",
+        values_to = "value"
+      ) %>%
+      mutate(
+        value = pmin(1, pmax(0, value)),
+        type = factor(
+          type,
+          levels = c(
+            paste0("sim", selected_sim),
+            "forecast.cf",
+            "actuals.cf"
+          )
+        )
+      )
+    bind_rows(
+      aggr_df %>% mutate(site_name = "Aggregation"),
+      selectwf_df
+    ) %>%
+      ggplot() +
+      geom_line(aes(time, value, col = type)) +
+      coord_cartesian(ylim = c(0, 1)) +
+      facet_wrap(~site_name, ncol = 4) +
+      scale_color_manual(
+        values = (c("darkred", "darkblue", rep("grey50", 30))),
+        breaks = c("actuals.cf", "forecast.cf", paste0("sim", selected_sim[1])),
+        labels = c("observed", "forecast", "scenarios")
+      ) +
+      labs(col = "", y = "Wind Generation % of Capacity") +
+      theme(
+        legend.position = ifelse(k == 6, "inside", "none"),
+        legend.position.inside = c(0.07, 0.8),
+        legend.background = element_blank(), # Makes background completely transparent
+        legend.box.background = element_rect(fill = NA, color = NA) # No border
+      ) +
+      scale_x_datetime(date_labels = "%H")
+
+    ggsave(
+      sprintf(
+        "fig_fcst/selectwf_waggr_%s%s.%s",
+        sorted_list$code[k],
+        date0,
+        myextension
+      ),
+      width = 10,
+      height = 3
+    )
+
+    samp_temp %>%
+      select(
+        site_name,
+        time,
+        actuals.cf,
+        forecast.cf,
+        all_of(selected_sim),
+        matches("^quant")
+      ) %>%
+      mutate(
+        across(
+          matches(pattern_sel),
+          \(x) if (grepl("err.cf", mod_prefix[k])) x + forecast.cf else x
+        )
+      ) %>%
+      pivot_longer(
+        cols = c(actuals.cf, forecast.cf, matches(pattern_sel)),
+        names_to = "type",
+        values_to = "value"
+      ) %>%
+      mutate(
+        value = pmin(1, pmax(0, value)),
+        type = factor(
+          type,
+          levels = c(
+            paste0("sim", selected_sim),
+            "forecast.cf",
+            "actuals.cf"
+          )
+        )
+      ) %>%
+      ggplot() +
+      geom_line(aes(time, value, col = type)) +
+      coord_cartesian(ylim = c(0, 1)) +
+      facet_wrap(~site_name) +
+      scale_color_manual(
+        values = (c("darkred", "darkblue", rep("grey50", 30))),
+        breaks = c("actuals.cf", "forecast.cf", paste0("sim", selected_sim[1])),
+        labels = c("observed", "forecast", "scenarios")
+      ) +
+      labs(col = "", y = "Wind Generation % of Capacity") +
+      theme(
+        legend.position = ifelse(k == 6, "inside", "none"),
+        legend.position.inside = c(0.9, 0.1),
+        legend.background = element_blank(), # Makes background completely transparent
+        legend.box.background = element_rect(fill = NA, color = NA) # No border
+      ) +
+      scale_x_datetime(date_labels = "%H")
+
+    ggsave(
+      sprintf("fig_fcst/35wf_%s%s.%s", sorted_list$code[k], date0, myextension),
+      width = 10,
+      height = 9
+    )
+  }
+)
+
+# samp_temp <- read_parquet(
+#   file.path(
+#     sorted_list$sample_path,
+#     sprintf("%s%s%s", mod_prefix, date0, extension)
+#   )[k]
+# )
+
+# samp_temp <- samp_temp %>%
+#   select(-c(site_name, time, actuals.cf, forecast.cf)) %>%
+#   bind_cols(
+#     cols_replacement
+#   )
+
+# n.samp.large <- 20
+# set.seed(1)
+# selected_sim <- sample(1:1000, n.samp.large)
+# # samp_temp %>%
+# #   select(site_name, time, actuals.cf, all_of(selected_sim)) %>%
+# #   head()
+
+# pattern_sel <- "^sim"
+# # pattern_sel <- "^quant"
+
+# samp_temp %>%
+#   select(
+#     site_name,
+#     time,
+#     actuals.cf,
+#     forecast.cf,
+#     all_of(selected_sim),
+#     matches("^quant")
+#   ) %>%
+#   group_by(time) %>%
+#   summarise(
+#     across(c(actuals.cf, forecast.cf, matches(pattern_sel)), \(x) {
+#       mean(x, na.rm = TRUE)
+#     })
+#   ) %>%
+#   mutate(
+#     across(
+#       matches(pattern_sel),
+#       \(x) if (grepl("err.cf", mod_prefix[k])) x + forecast.cf else x
+#     )
+#   ) %>%
+#   pivot_longer(
+#     cols = c(actuals.cf, forecast.cf, matches(pattern_sel)),
+#     names_to = "type",
+#     values_to = "value"
+#   ) %>%
+#   mutate(value = pmin(1, pmax(0, value))) %>%
+#   ggplot() +
+#   geom_line(aes(time, value, col = type)) +
+#   coord_cartesian(ylim = c(0, 1)) +
+#   # facet_wrap(~site_name) +
+#   scale_color_manual(
+#     values = c("actuals.cf" = "darkred", "forecast.cf" = "darkblue")
+#   ) +
+#   labs(col = "") +
+#   theme(legend.position = "bottom")
+
+# debug(plot_actuals_model)
+# test <- plot_actuals_model(
+#   data = data.scaled,
+#   samp_temp[, 1:1000] %>% t(),
+#   response = "actuals.cf",
+#   t1 = t0,
+#   h = 24,
+#   resp.lab = "Wind Generation",
+#   plot.type = "sim",
+#   n.sim.plot = n.samp.large,
+#   show.fig = TRUE,
+#   legend.opt = "forecast",
+#   clipping = TRUE,
+#   spatial = TRUE,
+#   fcst_points = fcst_ind
+# )
+
+# samp_temp

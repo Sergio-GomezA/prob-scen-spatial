@@ -97,9 +97,9 @@ time_seq <- seq(
 require(arrow)
 source("aux_funct_ps.R")
 test <- model.scoring.reliability(
-  model.name = sorted_list$mod_prefix[1],
+  model.name = sorted_list$mod_prefix[3],
   time_seq = time_seq,
-  sample.path = sorted_list$sample_path[1],
+  sample.path = sorted_list$sample_path[3],
   compressed = TRUE,
   ext = " 23:00:00.parquet"
 )

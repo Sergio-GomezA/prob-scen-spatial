@@ -372,6 +372,7 @@ plot_actuals_model <- function(
   response = "actuals.cf",
   t1, # initial time
   h = 24,
+  h_before = 0,
   resp.lab, # response of the model
   plot.type = "sim", # simulations or quantiles
   quSeq = c(0.025, 0.5, 0.975), # quantiles
@@ -440,7 +441,7 @@ plot_actuals_model <- function(
   plot.data <- data %>%
     filter(
       time < t1 + h * 60 * 60,
-      time >= t1
+      time >= t1 - h_before * 60 * 60
     ) %>%
     mutate(forecast.cf_orig = forecast.cf) %>%
     left_join(
@@ -606,6 +607,7 @@ simulation.plots.inla2 <- function(
   response = "actuals.cf",
   t1 = "2013-06-20 00:00:00 PST",
   h = 24,
+  h_before = 0,
   quSeq = c(0.025, 0.5, 0.975),
   n.sim.plot = c(5, 30),
   sample.df = NULL,
@@ -619,6 +621,7 @@ simulation.plots.inla2 <- function(
   run.name = "default",
   skip.plots = FALSE,
   inla_seed = 1,
+  obs_uncertainty = TRUE,
   ...
 ) {
   # browser()
@@ -686,7 +689,17 @@ simulation.plots.inla2 <- function(
     fcst_points <- which(inla.model$.args$data$time %in% fcst_dates) + pos_shift
     sel <- list(Predictor = fcst_points)
   }
-
+  # browser()
+  if (h_before > 0) {
+    fcst_dates <- seq(
+      from = t1 + (-h_before) * 60 * 60,
+      to = t1 + (h - 1) * 60 * 60,
+      by = "hour"
+    )
+    fcst_points <- which(train_data$time %in% fcst_dates) +
+      ifelse(preffect, n, 0)
+    sel <- list(APredictor = fcst_points)
+  }
   # h <- length(fcst_points)
 
   # Calculate post.pred.samples if sample.df is not provided
@@ -708,33 +721,6 @@ simulation.plots.inla2 <- function(
 
     hypers <- inla.model$summary.hyperpar %>% rownames()
 
-    # number of ar terms
-    # ar.order <- max(1, sum(str_detect(hypers, "^PACF[0-9]+ for t$")))
-
-    # find out which ar model was used
-    # ar.type <- case_when(
-    #   any(grepl("Rho for t", hypers)) ~ "AR1",
-    #   any(grepl("PACF1 for t", hypers)) ~ paste0("AR", ar.order),
-    #   TRUE ~ "none"
-    # )
-    # browser()
-
-    # if (ar.type == "AR1") {
-    #   # get ar par samples
-    #   sigma_ar <- precision.samples[, "Precision for t"]
-    #   rho <- precision.samples[, "Rho for t"]
-    # } else {
-    #   if (ar.type != "none") {
-    #     # get ar par samples
-    #     sigma_ar <- precision.samples[, "Precision for t"]
-    #     position <- which(grepl(
-    #       pattern = "^PACF[0-9]+ for t$",
-    #       colnames(precision.samples)
-    #     ))
-    #     pacf_vec <- precision.samples[, position]
-    #   }
-    # }
-
     if (response == "Y") {
       # for generalised Gaussian
       # reconstruct precision from linear model
@@ -755,85 +741,96 @@ simulation.plots.inla2 <- function(
       # simple precision samples
       phi.samples <- precision.samples[, 1]
     }
-    # case logit link
-    if (family == "beta") {
-      # apply inv.link to samples
-      linpredictor.samples <- sapply(windpow.samples, function(x) {
-        expit(x$latent)
-      }) %>%
-        t()
 
-      # recover alpha beta
-      shape1.samp <- linpredictor.samples * phi.samples
-      shape2.samp <- -linpredictor.samples * phi.samples + phi.samples
-
-      post.pred.samples <- sapply(
-        1:nsamp,
-        \(x) {
-          rbeta(ncol(linpredictor.samples), shape1.samp[x, ], shape2.samp[x, ])
-        }
-      ) %>%
-        t()
-    } else {
-      # case gaussian, no transformation
-      linpredictor.samples <- sapply(
-        windpow.samples,
-        function(x) {
-          if (family %in% c("stochvol", "stochvolt", "gamma", "weibull")) {
-            exp(x$latent)
-          } else {
-            x$latent
-          }
-        }
-      ) %>%
-        t()
-      # browser()
-      if (family %in% c("gamma")) {
-        post.pred.samples <- sapply(
-          1:nsamp,
-          \(x) {
-            rgamma(
-              ncol(linpredictor.samples),
-              phi.samples[x], # alpha
-              phi.samples[x] / linpredictor.samples[x, ] # rate
-            )
-          }
-        ) %>%
+    if (obs_uncertainty) {
+      # case logit link
+      if (family == "beta") {
+        # apply inv.link to samples
+        linpredictor.samples <- sapply(windpow.samples, function(x) {
+          expit(x$latent)
+        }) %>%
           t()
-      } else if (family %in% c("weibull")) {
+
+        # recover alpha beta
+        shape1.samp <- linpredictor.samples * phi.samples
+        shape2.samp <- -linpredictor.samples * phi.samples + phi.samples
+
         post.pred.samples <- sapply(
           1:nsamp,
           \(x) {
-            rweibull(
+            rbeta(
               ncol(linpredictor.samples),
-              phi.samples[x], # alpha
-              # 1/linpredictor.samples[x,] # scale 1/lambda
-              linpredictor.samples[x, ]^(-1 / phi.samples[x]) # scale lambda^(-1/alpha)
+              shape1.samp[x, ],
+              shape2.samp[x, ]
             )
           }
         ) %>%
           t()
       } else {
-        post.pred.samples <- sapply(
-          1:nsamp,
-          \(x) {
-            rnorm(
-              # add gaussian noise
-              ncol(linpredictor.samples),
-              linpredictor.samples[x, ],
-              1 / sqrt(phi.samples[x])
-            )
+        # case gaussian, no transformation
+        linpredictor.samples <- sapply(
+          windpow.samples,
+          function(x) {
+            if (family %in% c("stochvol", "stochvolt", "gamma", "weibull")) {
+              exp(x$latent)
+            } else {
+              x$latent
+            }
           }
         ) %>%
           t()
+        # browser()
+        if (family %in% c("gamma")) {
+          post.pred.samples <- sapply(
+            1:nsamp,
+            \(x) {
+              rgamma(
+                ncol(linpredictor.samples),
+                phi.samples[x], # alpha
+                phi.samples[x] / linpredictor.samples[x, ] # rate
+              )
+            }
+          ) %>%
+            t()
+        } else if (family %in% c("weibull")) {
+          post.pred.samples <- sapply(
+            1:nsamp,
+            \(x) {
+              rweibull(
+                ncol(linpredictor.samples),
+                phi.samples[x], # alpha
+                # 1/linpredictor.samples[x,] # scale 1/lambda
+                linpredictor.samples[x, ]^(-1 / phi.samples[x]) # scale lambda^(-1/alpha)
+              )
+            }
+          ) %>%
+            t()
+        } else {
+          post.pred.samples <- sapply(
+            1:nsamp,
+            \(x) {
+              rnorm(
+                # add gaussian noise
+                ncol(linpredictor.samples),
+                linpredictor.samples[x, ],
+                1 / sqrt(phi.samples[x])
+              )
+            }
+          ) %>%
+            t()
+        }
       }
-      # add gaussian noise
-      # post.pred.samples <- sapply(
-      #   1:nsamp,
-      #   \(x) rnorm(
-      #     ncol(linpredictor.samples),
-      #     linpredictor.samples[x,],1/sqrt(phi.samples[x]))
-      # ) %>% t()
+    } else {
+      # browser()
+      post.pred.samples <- case_when(
+        family == "beta" ~ sapply(windpow.samples, \(x) expit(x$latent)),
+        family %in% c("stochvol", "stochvolt", "gamma", "weibull") ~ sapply(
+          windpow.samples,
+          \(x) exp(x$latent)
+        ),
+        TRUE ~ sapply(windpow.samples, \(x) x$latent)
+      ) %>%
+        t()
     }
   } else {
     post.pred.samples <- sample.df
@@ -860,6 +857,7 @@ simulation.plots.inla2 <- function(
       response = response,
       t1 = t1,
       h = h,
+      h_before = h_before,
       resp.lab = resp.lab,
       plot.type = "quant",
       quSeq = quSeq,
@@ -878,6 +876,7 @@ simulation.plots.inla2 <- function(
       response = response,
       t1 = t1,
       h = h,
+      h_before = h_before,
       resp.lab = resp.lab,
       plot.type = "sim",
       n.sim.plot = n.sim.plot[1],
@@ -894,6 +893,7 @@ simulation.plots.inla2 <- function(
       response = response,
       t1 = t1,
       h = h,
+      h_before = h_before,
       resp.lab = resp.lab,
       plot.type = "sim",
       n.sim.plot = n.sim.plot[2],
@@ -1467,6 +1467,7 @@ stats_hour_model <- function(
   sample.path = file.path("~/Documents/proj2", "sample"),
   model.name,
   t1,
+  h = 24,
   response,
   probs = c(0.005, 0.025, 0.5, 0.975),
   compressed = FALSE,
@@ -1543,7 +1544,7 @@ stats_hour_model <- function(
     id_cols <- fcst_dates
     # rescaling
     scen.tbl <- apply(
-      scen.tbl[, 1:24],
+      scen.tbl[, 1:h],
       1,
       \(row) {
         rescaled_sample <- (row + additive_factor) / mult_factor
@@ -3971,3 +3972,129 @@ available_cores <- function() {
 
   total
 }
+
+
+plot.effects_regime <- function(
+  sum_rnd_list,
+  excluded = c("t", "eta", "eta.1", "eta.2"),
+  model_tag = "model1",
+  regime_tag = c("low", "mid", "high")
+) {
+  # browser()
+  k <- length(sum_rnd_list)
+  effects.list <- names(sum_rnd_list[[1]])
+
+  effec_data <- lapply(effects.list[!effects.list %in% excluded], \(effect) {
+    # extract data
+    data_effect <- lapply(1:k, \(k) {
+      sum_rnd_list[[k]][[effect]] %>%
+        mutate(model = model_tag, regime = regime_tag[k])
+    }) %>%
+      bind_rows() %>%
+      mutate(regime = factor(regime, levels = regime_tag))
+  })
+  names(effec_data) <- effects.list[!effects.list %in% excluded]
+
+  effect_plots <- lapply(
+    effects.list[!effects.list %in% excluded],
+    \(rand.effect, trans = \(x) x) {
+      df <- effec_data[[rand.effect]]
+      # Create a data frame for ggplot
+      plot_data <- data.frame(
+        group = df$ID,
+        # The grouped values for the random effect
+        mean = df$mean,
+        # Posterior mean
+        lower = df$`0.025quant`,
+        # 2.5% quantile (lower credible interval)
+        upper = df$`0.975quant`,
+        # 97.5% quantile (upper credible interval)
+        regime = df$regime
+      ) %>%
+        {
+          if (rand.effect %in% c("hour", "month")) {
+            mutate(., across(group, as.numeric))
+          } else {
+            .
+          }
+        } %>%
+        mutate(across(mean:upper, trans))
+
+      # Plot using ggplot2
+      p1 <- ggplot(plot_data, aes(x = group, col = regime)) +
+        geom_line(aes(y = mean)) + # Plot mean
+        # Plot credible intervals
+        geom_ribbon(
+          aes(
+            ymin = lower,
+            ymax = upper,
+            fill = regime
+          ),
+          col = NA,
+          alpha = 0.1
+        ) +
+
+        labs(
+          title = paste("Estimated effect for", rand.effect),
+          x = paste(rand.effect, "(Binned Variable)"),
+          y = "Estimated Effect"
+        ) +
+        theme_minimal()
+    }
+  )
+}
+# install.packages("ggh4x")
+require(ggh4x)
+plot.densities_regime <-
+  function(
+    sum_dens,
+    excluded = c("t", "eta", "eta.1", "eta.2"),
+    model_tag = "model1",
+    regime_tag = c("low", "mid", "high"),
+    loglist = c("precision a"),
+    ...
+  ) {
+    # browser()
+    # regimes
+    k <- length(sum_dens)
+
+    # combine parameters for each regime model
+    density_dat <-
+      lapply(sum_dens, \(marginal_inla) {
+        do.call(
+          rbind,
+          lapply(names(marginal_inla), function(param) {
+            data.frame(
+              x = marginal_inla[[param]][, "x"],
+              y = marginal_inla[[param]][, "y"],
+              parameter = param
+            )
+          })
+        )
+      })
+
+    # combine regimes
+    density_dat <-
+      lapply(1:k, \(k) {
+        density_dat[[k]] %>% mutate(model = model_tag, regime = regime_tag[k])
+      }) %>%
+      bind_rows() %>%
+      mutate(regime = factor(regime, levels = regime_tag))
+
+    # browser()
+    p.dens <- ggplot(density_dat, aes(x = x, y = y, col = regime)) +
+      geom_line() +
+      facet_wrap(~parameter, scales = "free", ...) +
+      facetted_pos_scales(
+        x = list(
+          parameter %in% loglist ~ scale_x_log10()
+        )
+      ) +
+      # {
+      #   if(logx){scale_x_log10()   # Apply log scale to the x-axis
+      #   }else{ NULL}
+      #     } +
+      labs(title = "Density of Hyperparameters", x = "Value", y = "Density") +
+      theme_minimal() +
+      theme(legend.position = "bottom")
+  }

@@ -24,40 +24,43 @@ restart <- TRUE
 # mod.file.name <- "r_actuals.cf_f_beta_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
 # mod.file.name <- "r_err.cf_f_gaussian_eta_feat_fcst_group-ar1g-etaderiv.rds"
 # mod.file.name <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-etaderiv.rds"
-mod.file.name <- "r_err.cf_f_gaussian_fd_feat_ws.w_group-fcst_group-fd_group-hour-ar2g.rds"
-ofolder <- case_when(
-  grepl("err.cf", mod.file.name) &
-    grepl("etaderiv", mod.file.name) &
-    grepl("matern", mod.file.name) ~ "ST-PR-NEN",
-  grepl("actuals.cf", mod.file.name) &
-    grepl("etaderiv", mod.file.name) &
-    grepl("matern", mod.file.name) ~ "ST-PR-NPB",
-  grepl("err.cf", mod.file.name) &
-    grepl("etaderiv", mod.file.name) &
-    grepl("ar1g", mod.file.name) ~ "AR1-PR-NEN",
-  grepl("err.cf", mod.file.name) &
-    grepl("etaderiv", mod.file.name) &
-    grepl("ar2g", mod.file.name) ~ "AR2-PR-NEN",
-  grepl("err.cf", mod.file.name) &
-    grepl("ar2g", mod.file.name) ~ "AR2-NEN",
-  grepl("actuals.cf", mod.file.name) &
-    grepl("etaderiv", mod.file.name) &
-    grepl("ar1g", mod.file.name) ~ "AR1-PR-NPB",
-  grepl("actuals.cf", mod.file.name) &
-    grepl("etaderiv", mod.file.name) &
-    grepl("ar2g", mod.file.name) ~ "AR2-PR-NPB",
-  grepl("actuals.cf", mod.file.name) &
-    grepl("ar2g", mod.file.name) ~ "AR2-NPB",
-  grepl("err.cf", mod.file.name) &
-    grepl("matern", mod.file.name) ~ "ST-NEN",
-  grepl("actuals.cf", mod.file.name) &
-    grepl("matern", mod.file.name) ~ "ST-NPB",
-  grepl("err.cf", mod.file.name) &
-    grepl("etaderiv", mod.file.name) ~ "PR-NEN",
-  grepl("actuals.cf", mod.file.name) &
-    grepl("etaderiv", mod.file.name) ~ "PR-NPB",
-  TRUE ~ "Other"
-)
+# mod.file.name <- "r_err.cf_f_gaussian_fd_feat_ws.w_group-fcst_group-fd_group-hour-ar2g.rds"
+# mod.file.name <- "r_actuals.cf_f_beta_eta_feat_fcst_group-matern-ar1-etaderiv.rds"
+mod.file.name <- "r_err.cf_f_gaussian_eta_feat_ws.w_group-fcst_group-hour-matern-ar1-etaderiv.rds"
+ofolder <- "ST-PR-NEN"
+# ofolder <- case_when(
+#   grepl("err.cf", mod.file.name) &
+#     grepl("etaderiv", mod.file.name) &
+#     grepl("matern", mod.file.name) ~ "ST-PR-NEN",
+#   grepl("actuals.cf", mod.file.name) &
+#     grepl("etaderiv", mod.file.name) &
+#     grepl("matern", mod.file.name) ~ "ST-PR-NPB",
+#   grepl("err.cf", mod.file.name) &
+#     grepl("etaderiv", mod.file.name) &
+#     grepl("ar1g", mod.file.name) ~ "AR1-PR-NEN",
+#   grepl("err.cf", mod.file.name) &
+#     grepl("etaderiv", mod.file.name) &
+#     grepl("ar2g", mod.file.name) ~ "AR2-PR-NEN",
+#   grepl("err.cf", mod.file.name) &
+#     grepl("ar2g", mod.file.name) ~ "AR2-NEN",
+#   grepl("actuals.cf", mod.file.name) &
+#     grepl("etaderiv", mod.file.name) &
+#     grepl("ar1g", mod.file.name) ~ "AR1-PR-NPB",
+#   grepl("actuals.cf", mod.file.name) &
+#     grepl("etaderiv", mod.file.name) &
+#     grepl("ar2g", mod.file.name) ~ "AR2-PR-NPB",
+#   grepl("actuals.cf", mod.file.name) &
+#     grepl("ar2g", mod.file.name) ~ "AR2-NPB",
+#   grepl("err.cf", mod.file.name) &
+#     grepl("matern", mod.file.name) ~ "ST-NEN",
+#   grepl("actuals.cf", mod.file.name) &
+#     grepl("matern", mod.file.name) ~ "ST-NPB",
+#   grepl("err.cf", mod.file.name) &
+#     grepl("etaderiv", mod.file.name) ~ "PR-NEN",
+#   grepl("actuals.cf", mod.file.name) &
+#     grepl("etaderiv", mod.file.name) ~ "PR-NPB",
+#   TRUE ~ "Other"
+# )
 # Get task ID and others from command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
 regime <- NULL #"mid"
@@ -133,6 +136,7 @@ window_units <- c(rep("days", 4), "months")
 
 # first day to forecast
 t0 <- as.POSIXct("2024-06-30 23:00:00", tz = "UTC")
+# t0 <- as.POSIXct("2024-07-01", tz = "UTC")
 
 # days to run
 time_seq <- seq(
@@ -294,13 +298,17 @@ wf.mesh <- fm_mesh_2d(
 #   theme_map()
 
 cat(sprintf(
-  "Data loaded and filtered to %d records using options
-Initial date: %s
-Window: %d %s\n",
+  "Training data loaded and filtered to %d records using options
+Training data from %s to %s
+Window length: %d %s
+Predicting power from %s to %s\n",
   nrow(train_data),
-  format(t1, "%Y-%m-%d"),
+  min(train_data$time) %>% format(., "%Y-%m-%d %H:%M"),
+  t1 %>% format(., "%Y-%m-%d %H:%M"),
   window,
-  ifelse(window == 1, sub("s", "", units), units)
+  ifelse(window == 1, sub("s", "", units), units),
+  (t1 + hours(1)) %>% format(., "%Y-%m-%d %H:%M"),
+  max(train_data$time) %>% format(., "%Y-%m-%d %H:%M")
 ))
 
 
@@ -373,8 +381,10 @@ if (!dir.exists(path.fig)) {
 }
 # undebug(simulation.plots.inla2)
 # save samples plot and get posterior samples
-
-set.seed(1)
+inla_seed <- 0
+n.samples <- 40
+mc <- 4
+set.seed(inla_seed)
 source("aux_funct_ps.R")
 # debug(simulation.plots.inla2)
 # debug(plot_actuals_model)
@@ -382,20 +392,25 @@ sim.obj <- simulation.plots.inla2(
   inla.model = new_fit,
   data = data.scaled,
   response = response,
-  t1 = t1,
+  t1 = t1 + hours(1),
+  h = 24,
+  h_before = 24,
   quSeq = quantile.seq,
   family = modfamily,
   resp.lab = resp.lab,
   # ylim = c(0,1.02),
   nsamp = n.samples,
-  show.fig = show.fig,
-  # show.fig = TRUE,
-  save.fig = save.fig,
-  fig.ext = ".png",
+  n.sim.plot = c(5, 30),
+  # show.fig = show.fig,
+  show.fig = TRUE,
+  # save.fig = save.fig,
+  save.fig = FALSE,
+  fig.ext = ".eps",
   path = path.fig,
   run.name = paste0(mod.code, t1),
   skip.plots = FALSE,
-  inla_seed = 1
+  inla_seed = inla_seed,
+  obs_uncertainty = FALSE
   # sample.df = sample.test$samples,
   # legend.position = "bottom"
 )
