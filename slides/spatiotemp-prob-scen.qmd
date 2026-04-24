@@ -436,7 +436,7 @@ Map of wind farm samples
 :::
 
 
-# Power Curve fitting{-}
+# Parametric power Curve fitting{-}
 
 ## Classic parametric shape
 

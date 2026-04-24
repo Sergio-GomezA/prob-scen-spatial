@@ -3854,6 +3854,10 @@ myspde.posterior <- function(result, name, what = "range", quantile = 0.95) {
 book.color.c = function(n = 201) {
   return(viridis(n))
 }
+
+book.color.c2 = function(n = 201) {
+  return(magma(n))
+}
 book.plot.field <- function(
   field,
   mesh,

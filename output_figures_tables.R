@@ -1235,3 +1235,621 @@ lapply(
 # )
 
 # samp_temp
+
+# plotting spatial latent field using vignette ####
+require(INLA)
+require(fmesher)
+require(ggthemes)
+require(inlabru)
+
+# Wind farm locations
+wind_points <- data.scaled %>%
+  select(lon, lat) %>%
+  distinct() %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326)
+
+# UK polygon
+uk <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf") %>%
+  filter(admin == "United Kingdom")
+sorted_list <- read.csv(
+  "summaries/sorted_stmodels.csv"
+)
+
+ofolder <- sorted_list$ofolder
+date0 <- "2024-08-05"
+t1 <- "2024-08-05 23:00:00" %>% as.POSIXct(tz = "UTC")
+mod_prefix <- gsub("\\.rds", "_t", sorted_list$mod.file.name)
+
+fig_path <- "~/ownCloud-s2441782@datasync.ed.ac.uk/projects/proj2/prob-scenarios-main-doc/fig_clean/"
+main_folder <- "~/Documents/proj2/spatial"
+model_path <- "~/Documents/proj2/spatial/model_objects"
+
+mod.temp <- readRDS(file.path(model_path, sorted_list$mod.file.name[6]))
+
+## ----samples-------------------------------------------------------------
+nn <- 20
+s <- inla.posterior.sample(
+  n = nn,
+  mod.temp,
+  intern = TRUE,
+  seed = 0,
+  add.names = FALSE
+)
+
+## Find the values of latent field "i" in samples from mesh1
+contents <- mod.temp$misc$configs$contents
+effect <- "spatial"
+id.effect <- which(contents$tag == effect)
+ind.effect <- contents$start[id.effect] - 1 + (1:contents$length[id.effect])
+
+
+# Obtain predictions at the nodes of mesh2
+spde <- mod.temp$.args$data$wf.spde
+mesh <- mod.temp$.args$data$wf.spde$mesh
+loc1 = mesh$loc[, 1:2]
+loc2 = mesh$loc[, 1:2]
+n = mesh$n
+
+mtch = match(data.frame(t(loc2)), data.frame(t(loc1)))
+idx.c = which(!is.na(mtch))
+idx.u = setdiff(1:mesh$n, idx.c)
+p = c(idx.u, idx.c)
+
+ypred.mesh2 = matrix(c(NA), mesh$n, nn)
+
+m <- n - length(idx.c)
+iperm <- numeric(m)
+
+
+## ----meanrf--------------------------------------------------------------
+# cor(fit_obs_df$actuals.cf, fit_obs_df$fitted)
+
+## ----projgrid------------------------------------------------------------
+stepsize <- 2
+
+data_masked <- history_window(
+  data.scaled,
+  t1,
+  window = 7,
+  units = "days",
+  mask = TRUE
+) %>%
+  mutate(
+    site_id = as.integer(factor(site_id))
+  ) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  mutate(
+    lon = st_coordinates(.)[, 1],
+    lat = st_coordinates(.)[, 2]
+  ) %>%
+  st_transform(crs = 27700) %>%
+  mutate(
+    x = st_coordinates(.)[, 1] / 1000,
+    y = st_coordinates(.)[, 2] / 1000
+  ) %>%
+  st_drop_geometry()
+# coords <- data_masked %>% select(x, y) %>% unique() %>% as.matrix()
+
+coords <- data.scaled %>%
+  distinct(lon, lat) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  mutate(
+    lon = st_coordinates(.)[, 1],
+    lat = st_coordinates(.)[, 2]
+  ) %>%
+  st_transform(crs = 27700) %>%
+  mutate(
+    x = st_coordinates(.)[, 1] / 1000,
+    y = st_coordinates(.)[, 2] / 1000
+  ) %>%
+  st_drop_geometry() %>%
+  select(x, y) %>%
+  as.matrix()
+# bnd <- fm_extensions(coords, convex = c(-.10, -.15))
+
+loc_unique <- data_masked %>%
+  distinct(x, y) %>%
+  as.matrix()
+bnd <- fm_extensions(loc_unique, convex = c(-.2, -.20))
+
+# bnd <- fm_extensions(coords, convex = c(-.1, -.20))
+
+wf.spde <- data$wf.spde
+mesh <- wf.spde$mesh
+# bnd <- fmesher::fm_segm(mesh, boundary = TRUE)
+# require(fmesher)
+# bnd <- inla.mesh.boundary(mesh)
+
+nxy <- round(c(diff(range(coords[, 1])), diff(range(coords[, 2]))) / stepsize)
+# projgrid <- inla.mesh.projector(
+#   mesh,
+#   xlim = range(coords[, 1]),
+#   ylim = range(coords[, 2]),
+#   dims = nxy
+# )
+projgrid <- fm_evaluator(
+  mesh,
+  xlim = range(coords[, 1]),
+  ylim = range(coords[, 2]),
+  dims = nxy
+)
+# expand.grid(projgrid$x, projgrid$y) %>%
+#   plot()
+## ----projpmean-----------------------------------------------------------
+time_grid <- seq(
+  from = min(data_masked$time),
+  to = max(data_masked$time),
+  by = "1 hour"
+)
+
+data_masked$time_idx <- match(data_masked$time, time_grid)
+k <- data_masked$time_idx %>% unique() %>% length()
+st.group <- data$st.group[!is.na(data$st.group)]
+summary(st.group)
+
+spde_idx <- inla.spde.make.index(
+  name = "spatial",
+  n.spde = wf.spde$n.spde,
+  n.group = length(unique(st.group))
+)
+
+# (193 - 23:0) %>% length()
+# xfit <- list()
+# for (j in (1:24)) {
+#   xfit[[j]] <- fm_evaluate(
+#     projgrid,
+#     mod.temp$summary.fitted.values$mean[spde_idx$spatial.group == k - 24 + j]
+#   )
+# }
+# plot(xfit[1])
+# mod.temp$summary.fitted.values$mean %>% length()
+# mod.temp$summary.random$spatial$mean %>% length()
+
+xmean <- list()
+for (j in (1:24)) {
+  xmean[[j]] <- fm_evaluate(
+    projgrid,
+    mod.temp$summary.random$spatial$mean[spde_idx$spatial.group == k - 24 + j]
+  )
+}
+xmode <- list()
+for (j in (1:24)) {
+  xmode[[j]] <- fm_evaluate(
+    projgrid,
+    mod.temp$summary.random$spatial$mode[spde_idx$spatial.group == k - 24 + j]
+  )
+}
+
+xsd <- list()
+for (j in (1:24)) {
+  xsd[[j]] <- fm_evaluate(
+    projgrid,
+    mod.temp$summary.random$spatial$sd[spde_idx$spatial.group == k - 24 + j]
+  )
+}
+
+xlow <- list()
+for (j in (1:24)) {
+  xlow[[j]] <- fm_evaluate(
+    projgrid,
+    mod.temp$summary.random$spatial$`0.025quant`[
+      spde_idx$spatial.group == k - 24 + j
+    ]
+  )
+}
+
+xhigh <- list()
+for (j in (1:24)) {
+  xhigh[[j]] <- fm_evaluate(
+    projgrid,
+    mod.temp$summary.random$spatial$`0.975quant`[
+      spde_idx$spatial.group == k - 24 + j
+    ]
+  )
+}
+
+## ----inout---------------------------------------------------------------
+library(splancs)
+# projgrid$lattice$loc %>% plot()
+# xy.in <- inout(projgrid$lattice$loc, cbind(PRborder[, 1], PRborder[, 2]))
+pts_sf <- st_as_sf(
+  data.frame(
+    x = projgrid$lattice$loc[, 1],
+    y = projgrid$lattice$loc[, 2]
+  ),
+  coords = c("x", "y"),
+  crs = st_crs(bnd)
+)
+
+# coords <- bnd[[1]]
+# coords_closed <- rbind(coords, coords[1, ])
+# bnd_poly <- st_sfc(
+#   st_polygon(list(coords_closed)),
+#   crs = st_crs(pts_sf) # ensure same CRS
+# )
+# plot(coords)
+# plot(coords, pch = 16)
+# text(coords, labels = seq_len(nrow(coords)), pos = 3, cex = 0.7)
+# plot(coords_closed)
+
+# plot(mesh)
+# plot(bnd[[2]])
+# plot(pts_sf)
+# plot(bnd[[1]])
+# mesh$loc %>% str()
+# plot(bnd[[1]], col = "blue", lwd = 2)
+# lines(mesh$loc[bnd[[1]][[2]], ], col = "red", lwd = 2)
+inside <- st_within(pts_sf, bnd[[1]], sparse = FALSE)[, 1]
+# inside <- st_within(pts_sf, bnd_poly, sparse = FALSE)[, 1]
+idx_inside <- which(inside)
+times <- seq(1, 24, 2)
+
+pdf(
+  "fig/speff_ST-PR-NEN.pdf",
+  width = 10,
+  height = 7
+)
+par(mfrow = c(4, 3), mar = c(1, 1, 1, 2))
+
+# times <- c(1, 12, 24)
+for (j in times) {
+  xmean[[j]][-idx_inside] <- NA
+  book.plot.field(
+    list(x = projgrid$x, y = projgrid$y, z = xmean[[j]]),
+    zlim = round(range(unlist(xmean), na.rm = TRUE), 1),
+    main = sprintf(
+      "Time: %s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    )
+  )
+  # plot(mesh, add = TRUE)
+  points(loc_unique)
+}
+dev.off()
+
+
+pdf(
+  "fig/speffmode_ST-PR-NEN.pdf",
+  width = 10,
+  height = 7
+)
+par(mfrow = c(4, 3), mar = c(1, 1, 1, 2))
+
+
+for (j in times) {
+  xmode[[j]][-idx_inside] <- NA
+  book.plot.field(
+    list(x = projgrid$x, y = projgrid$y, z = xmode[[j]]),
+    zlim = round(range(unlist(xmode), na.rm = TRUE), 1),
+    main = sprintf(
+      "Time: %s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    )
+  )
+  # plot(mesh, add = TRUE)
+  points(loc_unique)
+}
+dev.off()
+
+pdf(
+  "fig/speffsd_ST-PR-NEN.pdf",
+  width = 10,
+  height = 7
+)
+par(mfrow = c(4, 3), mar = c(1, 1, 1, 2))
+
+for (j in times) {
+  xsd[[j]][-idx_inside] <- NA
+  book.plot.field(
+    list(x = projgrid$x, y = projgrid$y, z = xsd[[j]]),
+    zlim = round(range(unlist(xsd), na.rm = TRUE), 1),
+    main = sprintf(
+      "Time: %s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    ),
+    # mesh = mesh,
+    col = book.color.c2()
+  )
+  # plot(mesh, add = TRUE)
+  points(loc_unique)
+}
+dev.off()
+
+pdf(
+  "fig/spefflow_ST-PR-NEN.pdf",
+  width = 10,
+  height = 7
+)
+par(mfrow = c(4, 3), mar = c(1, 1, 1, 2))
+
+for (j in times) {
+  xlow[[j]][-idx_inside] <- NA
+  book.plot.field(
+    list(x = projgrid$x, y = projgrid$y, z = xlow[[j]]),
+    zlim = round(range(unlist(xlow), na.rm = TRUE), 1),
+    main = sprintf(
+      "Time: %s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    ),
+    # mesh = mesh,
+    col = book.color.c()
+  )
+  # plot(mesh, add = TRUE)
+  points(loc_unique)
+}
+dev.off()
+
+pdf(
+  "fig/speffhigh_ST-PR-NEN.pdf",
+  width = 10,
+  height = 7
+)
+par(mfrow = c(4, 3), mar = c(1, 1, 1, 2))
+
+for (j in times) {
+  xhigh[[j]][-idx_inside] <- NA
+  book.plot.field(
+    list(x = projgrid$x, y = projgrid$y, z = xhigh[[j]]),
+    zlim = round(range(unlist(xhigh), na.rm = TRUE), 1),
+    main = sprintf(
+      "Time: %s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    ),
+    # mesh = mesh,
+    col = book.color.c()
+  )
+  # plot(mesh, add = TRUE)
+  points(loc_unique)
+}
+dev.off()
+
+times <- c(1, 12, 24)
+
+col_lims <- round(range(c(unlist(xlow), unlist(xhigh)), na.rm = TRUE), 1)
+
+pdf(
+  "fig/sp_summary_ST-PR-NEN.pdf",
+  width = 10,
+  height = 7
+)
+par(mfrow = c(4, 3), mar = c(1, 1, 1, 2))
+for (j in times) {
+  xmean[[j]][-idx_inside] <- NA
+  book.plot.field(
+    list(x = projgrid$x, y = projgrid$y, z = xmean[[j]]),
+    zlim = col_lims,
+    main = sprintf(
+      "Mean , h=%s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    )
+  )
+  points(loc_unique)
+}
+for (j in times) {
+  xsd[[j]][-idx_inside] <- NA
+  book.plot.field(
+    list(x = projgrid$x, y = projgrid$y, z = xsd[[j]]),
+    zlim = round(range(unlist(xsd), na.rm = TRUE), 1),
+    main = sprintf(
+      "Std. dev. %s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    ),
+    col = book.color.c2()
+  )
+  points(loc_unique)
+}
+for (j in times) {
+  xlow[[j]][-idx_inside] <- NA
+  book.plot.field(
+    list(x = projgrid$x, y = projgrid$y, z = xlow[[j]]),
+    zlim = col_lims,
+    main = sprintf(
+      "Lower quant. %s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    )
+  )
+  points(loc_unique)
+}
+for (j in times) {
+  xhigh[[j]][-idx_inside] <- NA
+  book.plot.field(
+    list(x = projgrid$x, y = projgrid$y, z = xhigh[[j]]),
+    zlim = col_lims,
+    main = sprintf(
+      "Upper quant. %s",
+      format(as.POSIXct("2024-07-01", tz = "UTC") + hours(j), "%H:%M")
+    ),
+    # mesh = mesh,
+    col = book.color.c()
+  )
+  points(loc_unique)
+}
+dev.off()
+
+grid <- expand.grid(
+  x = projgrid$x,
+  y = projgrid$y
+)
+
+# 2) flatten mask to match the same ordering
+mask_vec <- as.vector(idx_inside) # must be 111 x 86
+
+df_list <- list()
+
+for (j in times) {
+  # flatten fields
+  v_mean <- as.vector(xmean[[j]])
+  v_sd <- as.vector(xsd[[j]])
+  v_low <- as.vector(xlow[[j]])
+  v_high <- as.vector(xhigh[[j]])
+
+  # apply mask
+  v_mean[!mask_vec] <- NA
+  v_sd[!mask_vec] <- NA
+  v_low[!mask_vec] <- NA
+  v_high[!mask_vec] <- NA
+
+  df_list[[paste0("mean_", j)]] <- data.frame(
+    x = grid$x,
+    y = grid$y,
+    value = v_mean,
+    stat = "Posterior mean",
+    lead = paste0("+", j, " h")
+  )
+
+  df_list[[paste0("sd_", j)]] <- data.frame(
+    x = grid$x,
+    y = grid$y,
+    value = v_sd,
+    stat = "Posterior std. dev.",
+    lead = paste0("+", j, " h")
+  )
+
+  df_list[[paste0("low_", j)]] <- data.frame(
+    x = grid$x,
+    y = grid$y,
+    value = v_low,
+    stat = "2.5% quantile",
+    lead = paste0("+", j, " h")
+  )
+
+  df_list[[paste0("high_", j)]] <- data.frame(
+    x = grid$x,
+    y = grid$y,
+    value = v_high,
+    stat = "97.5% quantile",
+    lead = paste0("+", j, " h")
+  )
+}
+
+df <- bind_rows(df_list)
+
+# enforce ordering for facets
+df$stat <- factor(
+  df$stat,
+  levels = c(
+    "Posterior mean",
+    "Posterior std. dev.",
+    "2.5% quantile",
+    "97.5% quantile"
+  )
+)
+
+myxlim <- c(-6, -0)
+myylim <- c(54.5, 56.5)
+
+uk_crop <- uk %>%
+  st_crop(
+    xmin = myxlim[1],
+    xmax = myxlim[2],
+    ymin = myylim[1],
+    ymax = myylim[2]
+  )
+uk_27700 <- st_transform(uk_crop, 27700)
+
+# ggplot(uk_crop) +
+#   geom_sf() +
+#   coord_sf(xlim = myxlim, ylim = myylim)
+df <- df %>%
+  mutate(
+    x = x * 1000,
+    y = y * 1000
+  )
+loc_df <- as.data.frame(loc_unique) %>%
+  setNames(c("x", "y")) %>%
+  mutate(
+    x = x * 1000,
+    y = y * 1000
+  )
+df$lead <- factor(df$lead, levels = paste0("+", times, " h"))
+p <- ggplot(df, aes(x = x, y = y, fill = value)) +
+  geom_sf(
+    data = uk_27700,
+    fill = "grey90",
+    colour = "grey40",
+    inherit.aes = FALSE
+  ) +
+  geom_raster(
+    # alpha = 0.8
+  ) +
+  facet_grid(stat ~ lead, switch = "y") +
+  # coord_equal() +
+  # scale_fill_viridis_c(limits = col_lims, na.value = NA) +
+  scale_fill_viridis_c(limits = col_lims, na.value = NA, option = "A") +
+  theme_map() +
+  theme(
+    strip.text = element_text(size = 10),
+    axis.title = element_blank(),
+    legend.position = "right",
+    legend.position.inside = c(-0.1, 0.1)
+  ) +
+  labs(fill = "")
+p
+p <- p +
+  geom_point(
+    data = as.data.frame(loc_df),
+    aes(x = x, y = y),
+    inherit.aes = FALSE,
+    size = 0.4
+  )
+ggsave("fig/sp_summary_ST-PR-NEN.pdf", p, width = 10, height = 7)
+
+
+p <- ggplot() +
+  geom_sf(data = uk_27700, fill = "grey90", colour = "grey40") +
+  geom_raster(data = df, aes(x = x, y = y, fill = value)) +
+  geom_point(
+    data = loc_df,
+    aes(x = x, y = y),
+    size = 0.4
+  ) +
+  facet_grid(stat ~ lead, switch = "y") +
+  coord_sf(crs = 27700, xlim = myxlim, ylim = myylim) +
+
+  scale_fill_viridis_c(limits = col_lims, na.value = NA) +
+  theme_map() +
+  theme(
+    strip.text = element_text(size = 10),
+    strip.placement = "outside",
+    strip.text.y.left = element_text(angle = 0),
+    axis.title = element_blank(),
+    legend.position = "right"
+  ) +
+  labs(fill = "")
+
+
+uk_crop_3857 <- st_transform(uk_crop, 3857)
+df_sf <- st_as_sf(df, coords = c("x", "y"), crs = 27700) %>%
+  st_transform(3857) %>%
+  mutate(
+    x = st_coordinates(.)[, 1],
+    y = st_coordinates(.)[, 2]
+  )
+
+p <- ggplot() +
+
+  # geom_sf(
+  #   data = uk_crop_3857,
+  #   fill = "grey90",
+  #   colour = "grey40",
+  #   inherit.aes = FALSE
+  # ) +
+
+  geom_tile(
+    data = df_sf,
+    aes(x = x, y = y, fill = value)
+  ) +
+
+  facet_grid(stat ~ lead, switch = "y") +
+
+  scale_fill_viridis_c(limits = col_lims) +
+
+  theme_map() +
+  theme(
+    strip.text = element_text(size = 10),
+    axis.title = element_blank(),
+    legend.position = "right"
+  ) +
+
+  labs(fill = "")
+p
