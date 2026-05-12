@@ -13,7 +13,7 @@ require(geosphere)
 
 theme_set(theme_bw())
 
-wind.bmus <- fread(file.path("data", "wind_bmu_2.csv.gz"))
+wind.bmus <- data.table::fread(file.path("data", "wind_bmu_2.csv.gz"))
 wind.bmus.alt <- read.csv("data/wind_bmu_alt.csv")
 
 mypalette <- pal_aaas()(3)[c(1, 3)]
@@ -122,7 +122,7 @@ combined_gwa_data <- function(
 
   out_path <- file.path(path, sprintf("merged_%s_%sm.tif", variable, height))
 
-  writeRaster(d_combined, out_path, overwrite = TRUE)
+  terra::writeRaster(d_combined, out_path, overwrite = TRUE)
 
   df_combined <-
     lapply(
@@ -137,7 +137,7 @@ combined_gwa_data <- function(
     bind_rows()
 
   if (save_df) {
-    write_fst(
+    fst::write_fst(
       df_combined,
       file.path(
         path,
@@ -1018,7 +1018,7 @@ generic_pow_conv <- function(
   turb_capacity = 4
 ) {
   # browser()
-  class_curve <- fread("data/generic_powerCurves.csv.gz") %>%
+  class_curve <- data.table::fread("data/generic_powerCurves.csv.gz") %>%
     filter(class == turb_class)
 
   # max_rated_power = max(class_curve$ratedPower)

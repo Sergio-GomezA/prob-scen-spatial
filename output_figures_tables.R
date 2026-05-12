@@ -1,4 +1,5 @@
 ## Packages ####
+
 require(tidyverse)
 require(parallel)
 require(ggsci)
@@ -1351,15 +1352,15 @@ loc_unique <- data_masked %>%
   distinct(x, y) %>%
   as.matrix()
 bnd <- fm_extensions(loc_unique, convex = c(-.2, -.20))
-
+bnd[[1]] %>% st_coordinates()
 # bnd <- fm_extensions(coords, convex = c(-.1, -.20))
-
-wf.spde <- data$wf.spde
+ggplot() + geom_sf(data = bnd[[1]])
+wf.spde <- mod.temp$.args$data$wf.spde
 mesh <- wf.spde$mesh
 # bnd <- fmesher::fm_segm(mesh, boundary = TRUE)
 # require(fmesher)
 # bnd <- inla.mesh.boundary(mesh)
-
+# ggplot() + gg(data = mesh)
 nxy <- round(c(diff(range(coords[, 1])), diff(range(coords[, 2]))) / stepsize)
 # projgrid <- inla.mesh.projector(
 #   mesh,
@@ -1373,6 +1374,13 @@ projgrid <- fm_evaluator(
   ylim = range(coords[, 2]),
   dims = nxy
 )
+
+projgrid <- fm_evaluator(
+  mesh,
+  xlim = range(st_coordinates(bnd[[1]])[, 1]),
+  ylim = range(st_coordinates(bnd[[1]])[, 2]),
+  dims = nxy
+)
 # expand.grid(projgrid$x, projgrid$y) %>%
 #   plot()
 ## ----projpmean-----------------------------------------------------------
@@ -1384,7 +1392,7 @@ time_grid <- seq(
 
 data_masked$time_idx <- match(data_masked$time, time_grid)
 k <- data_masked$time_idx %>% unique() %>% length()
-st.group <- data$st.group[!is.na(data$st.group)]
+st.group <- mod.temp$.args$data$st.group[!is.na(mod.temp$.args$data$st.group)]
 summary(st.group)
 
 spde_idx <- inla.spde.make.index(
@@ -1449,7 +1457,7 @@ for (j in (1:24)) {
 }
 
 ## ----inout---------------------------------------------------------------
-library(splancs)
+# library(splancs)
 # projgrid$lattice$loc %>% plot()
 # xy.in <- inout(projgrid$lattice$loc, cbind(PRborder[, 1], PRborder[, 2]))
 pts_sf <- st_as_sf(
@@ -1603,6 +1611,8 @@ for (j in times) {
 }
 dev.off()
 
+
+## Summary plot with mean field, sd, and quantiles ####
 times <- c(1, 12, 24)
 
 col_lims <- round(range(c(unlist(xlow), unlist(xhigh)), na.rm = TRUE), 1)
@@ -1763,12 +1773,12 @@ loc_df <- as.data.frame(loc_unique) %>%
   )
 df$lead <- factor(df$lead, levels = paste0("+", times, " h"))
 p <- ggplot(df, aes(x = x, y = y, fill = value)) +
-  geom_sf(
-    data = uk_27700,
-    fill = "grey90",
-    colour = "grey40",
-    inherit.aes = FALSE
-  ) +
+  # geom_sf(
+  #   data = uk_27700,
+  #   fill = "grey90",
+  #   colour = "grey40",
+  #   inherit.aes = FALSE
+  # ) +
   geom_raster(
     # alpha = 0.8
   ) +
